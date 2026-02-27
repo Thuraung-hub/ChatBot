@@ -1,0 +1,46 @@
+name: stitch_shop
+description: "Stitch Shop – Premium Dark-Mode E-Commerce App with Gemini AI."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # UI & Design
+  google_fonts: ^6.2.1
+  flutter_animate: ^4.5.0
+  cached_network_image: ^3.3.1
+  shimmer: ^3.0.0
+  
+  # State Management & Networking
+  provider: ^6.1.2
+  http: ^1.2.1
+  
+  # AI Integration
+  google_generative_ai: ^0.4.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  # This uses the Material Design 3 system
+  uses-material-design: true
+
+  # Ensure you uncomment and list your assets here if you have images/icons
+  # assets:
+  #   - assets/images/
+  #   - assets/logo.png
+
+  # If you use custom local fonts, define them here
+  # fonts:
+  #   - family: MyCustomFont
+  #     fonts:
+  #       - asset: assets/fonts/MyCustomFont-Regular.ttf
+  #       - asset: assets/fonts/MyCustomFont-Bold.ttf
+  #         weight: 700
