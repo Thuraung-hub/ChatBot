@@ -71,7 +71,6 @@ class ChatProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
-
   String _fallbackReply(String input) {
     final q = input.toLowerCase();
     if (q.contains('iphone 15') || q.contains('latest')) {
@@ -96,3 +95,4 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 }
+// Note: In a production app, never hardcode API keys. Use secure storage or environment variables.
