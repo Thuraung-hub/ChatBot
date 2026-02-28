@@ -79,8 +79,11 @@ class ChatProvider extends ChangeNotifier {
     } else if (q.contains('budget') || q.contains('cheap')) {
       return 'The iPhone 5 at \$149 is a sleek collector\'s piece, '
              'but the iPhone 11 at \$549 gives you Night Mode and 5G-ready prep.';
-    } else if (q.contains('camera') || q.contains('photo')) {
-      return 'For photography, the iPhone 13 or 15 are elite. '
+    }
+      else if (q.contains('hahahahaha') || q.contains('lol') || q.contains('funny')) {
+      return 'Glad you\'re enjoying the chat! 😄 If you have any questions about our iPhones or fashion picks, just ask!';
+   } else if (q.contains('camera') || q.contains('photo')) {
+     return 'For photography, the iPhone 13 or 15 are elite. '
              'Cinematic Mode + 48 MP sensor = magic. 📸';
     } else if (q.contains('hello') || q.contains('hi')) {
       return 'Hey! Great style starts with the right tech. '
