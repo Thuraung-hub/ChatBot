@@ -7,7 +7,7 @@ import 'package:provider/provider.dart';
 import '../providers/chat_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/shared_widgets.dart';
-
+import '../widgets/typing_indicator.dart';
 class FloatingChatBubble extends StatefulWidget {
   const FloatingChatBubble({super.key});
   @override
@@ -155,7 +155,7 @@ class _FloatingChatBubbleState extends State<FloatingChatBubble>
                                 itemCount: msgs.length + (chat.isTyping ? 1 : 0),
                                 itemBuilder: (_, i) {
                                   if (i == msgs.length && chat.isTyping) {
-                                    return const Padding(
+                                    return  Padding(
                                       padding: EdgeInsets.only(bottom: 6),
                                       child: Row(children: [TypingIndicator()]),
                                     );

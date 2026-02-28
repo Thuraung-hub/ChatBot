@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import '../providers/chat_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/shared_widgets.dart';
-
+import '../widgets/typing_indicator.dart';
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
   @override
@@ -127,7 +127,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       chat.messages.length + (chat.isTyping ? 1 : 0),
                   itemBuilder: (_, i) {
                     if (i == chat.messages.length && chat.isTyping) {
-                      return const Padding(
+                      return  Padding(
                         padding: EdgeInsets.only(bottom: 12),
                         child: Row(
                           children: [TypingIndicator()],

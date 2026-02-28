@@ -7,7 +7,7 @@ import '../widgets/floating_chat_bubble.dart';
 import 'home_screen.dart';
 import 'chat_screen.dart';
 import 'profile_screen.dart';
-
+import '../widgets/nav_item.dart';
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
   @override
@@ -42,7 +42,7 @@ class _MainShellState extends State<MainShell> {
       ),
       floatingActionButton: isChat
           ? null
-          : const Padding(
+          :  Padding(
               padding: EdgeInsets.only(bottom: 80),
               child: FloatingChatBubble(),
             ),
@@ -63,7 +63,7 @@ class _MainShellState extends State<MainShell> {
                 return NavItem(
                   icon:     selected ? item.selectedIcon : item.icon,
                   label:    item.label,
-                  selected: selected,
+                  isSelected: selected,
                   onTap:    () => setState(() => _index = i),
                 );
               }),

@@ -9,6 +9,9 @@ import '../models/models.dart';
 import '../providers/user_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/shared_widgets.dart';
+import '../widgets/shared_widgets.dart';
+import '../widgets/star_row.dart';
+import '../widgets/section_title.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Product product;
@@ -200,7 +203,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       StarRow(
                         rating:    widget.product.rating,
                         size:      17,
-                        showCount: true,
+                    
                         count:     widget.product.reviewCount,
                       ),
                       const SizedBox(height: 18),
@@ -285,7 +288,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
                       // Reviews
                       const SizedBox(height: 32),
-                      const SectionTitle('Customer Reviews'),
+                       SectionTitle('Customer Reviews'),
                       const SizedBox(height: 16),
                       ..._reviews.map((r) => _ReviewCard(
                             review: r,

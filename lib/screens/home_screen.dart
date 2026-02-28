@@ -10,7 +10,9 @@ import '../providers/user_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/shared_widgets.dart';
 import 'product_detail_screen.dart';
-
+import '../widgets/shared_widgets.dart';
+import '../widgets/star_row.dart';
+import '../widgets/section_title.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
