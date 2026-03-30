@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../app_theme.dart';
 import '../providers/auth_provider.dart' as app;
+import 'offline_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -24,8 +26,30 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  Future<bool> _checkConnectivity() async {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    return !connectivityResult.contains(ConnectivityResult.none);
+  }
+
   Future<void> _handleEmailLogin() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) return;
+    
+    // Check connectivity first
+    final isOnline = await _checkConnectivity();
+    if (!isOnline) {
+      if (mounted) {
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const OfflineScreen()),
+          );
+        }
+      }
+      return;
+    }
+    
+    if (!mounted) return;
+    
     setState(() { _loading = true; _error = ''; });
     try {
       await context.read<app.AuthProvider>().signInWithEmail(
@@ -34,19 +58,37 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       if (mounted) Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
-      setState(() { _error = e.toString().replaceAll('Exception: ', ''); });
+      if (mounted) {
+        setState(() { _error = e.toString().replaceAll('Exception: ', ''); });
+      }
     } finally {
       if (mounted) setState(() { _loading = false; });
     }
   }
 
   Future<void> _handleGoogleLogin() async {
+    // Check connectivity first
+    final isOnline = await _checkConnectivity();
+    if (!isOnline) {
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const OfflineScreen()),
+        );
+      }
+      return;
+    }
+    
+    if (!mounted) return;
+    
     setState(() { _error = ''; });
     try {
       await context.read<app.AuthProvider>().signInWithGoogle();
       if (mounted) Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
-      setState(() { _error = e.toString().replaceAll('Exception: ', ''); });
+      if (mounted) {
+        setState(() { _error = e.toString().replaceAll('Exception: ', ''); });
+      }
     }
   }
 
