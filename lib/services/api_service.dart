@@ -1,14 +1,14 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import '../config/app_config.dart';
 
 class ApiService {
-  // ============ CONFIGURATION ============
-  // Change this to your actual backend URL
-  static const String baseUrl = 'https://your-api.com/api';
+  // Get base URL from config
+  static String get baseUrl => Config.apiBaseUrl;
   
-  // Add your API key/token if needed
-  static const String apiKey = 'your-api-key-here';
+  // Get API key from config
+  static String get apiKey => Config.apiKey;
 
   static final ApiService _instance = ApiService._internal();
 

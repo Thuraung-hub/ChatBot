@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'app_theme.dart';
+import 'config/app_config.dart';
 import 'providers/auth_provider.dart' as app;
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
@@ -15,6 +16,10 @@ import 'screens/admin_dashboard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Set environment (change based on build configuration)
+  Config.setEnvironment(Environment.production); // For Firebase Hosting web deployment
+  
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

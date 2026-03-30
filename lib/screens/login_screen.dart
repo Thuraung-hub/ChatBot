@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../app_theme.dart';
 import '../providers/auth_provider.dart' as app;
 import 'offline_screen.dart';
@@ -26,9 +27,30 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  Future<bool> _isNetworkError(String errorMessage) async {
+    final lowerError = errorMessage.toLowerCase();
+    return lowerError.contains('network') ||
+        lowerError.contains('connection') ||
+        lowerError.contains('timeout') ||
+        lowerError.contains('unreachable') ||
+        lowerError.contains('failed') ||
+        lowerError.contains('offline');
+  }
+
   Future<bool> _checkConnectivity() async {
-    final connectivityResult = await Connectivity().checkConnectivity();
-    return !connectivityResult.contains(ConnectivityResult.none);
+    try {
+      // On web, skip connectivity check as it's unreliable
+      if (kIsWeb) {
+        return true;
+      }
+      
+      final connectivityResult = await Connectivity().checkConnectivity();
+      final isOffline = connectivityResult.contains(ConnectivityResult.none);
+      return !isOffline;
+    } catch (e) {
+      // If connectivity check fails, assume online
+      return true;
+    }
   }
 
   Future<void> _handleEmailLogin() async {
@@ -38,12 +60,10 @@ class _LoginScreenState extends State<LoginScreen> {
     final isOnline = await _checkConnectivity();
     if (!isOnline) {
       if (mounted) {
-        if (mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const OfflineScreen()),
-          );
-        }
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const OfflineScreen()),
+        );
       }
       return;
     }
@@ -59,7 +79,20 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
       if (mounted) {
-        setState(() { _error = e.toString().replaceAll('Exception: ', ''); });
+        final errorMsg = e.toString().replaceAll('Exception: ', '');
+        
+        // Check if it's a network error
+        if (await _isNetworkError(errorMsg)) {
+          if (mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const OfflineScreen()),
+            );
+          }
+        } else {
+          // Show regular error message
+          setState(() { _error = errorMsg; });
+        }
       }
     } finally {
       if (mounted) setState(() { _loading = false; });
@@ -87,7 +120,20 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
       if (mounted) {
-        setState(() { _error = e.toString().replaceAll('Exception: ', ''); });
+        final errorMsg = e.toString().replaceAll('Exception: ', '');
+        
+        // Check if it's a network error
+        if (await _isNetworkError(errorMsg)) {
+          if (mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const OfflineScreen()),
+            );
+          }
+        } else {
+          // Show regular error message
+          setState(() { _error = errorMsg; });
+        }
       }
     }
   }
