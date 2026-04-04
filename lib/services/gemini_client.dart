@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../config/app_constants.dart';
 import '../config/app_config.dart';
 
 abstract class GeminiClient {
@@ -28,6 +29,8 @@ class HttpGeminiClient implements GeminiClient {
           }
         ]
       }),
+    ).timeout(
+      const Duration(seconds: AppConstants.apiTimeoutSeconds),
     );
 
     if (response.statusCode != 200) {

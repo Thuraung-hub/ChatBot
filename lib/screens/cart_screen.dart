@@ -6,6 +6,7 @@ import '../app_theme.dart';
 import '../models/cart_item.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/auth_service.dart';
+import '../services/monitoring_service.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
@@ -233,45 +234,66 @@ class _OrderSummary extends StatelessWidget {
 
   Future<void> _checkoutNow(BuildContext context) async {
     if (items.isEmpty) return;
+    final trace = await MonitoringService.startTrace('cart_checkout_now');
+    try {
+      final now = DateTime.now();
+      final deliveryDate =
+          now.add(const Duration(days: AppConstants.deliveryLeadDays));
+      final db = FirebaseFirestore.instance;
+      final batch = db.batch();
 
-    final now = DateTime.now();
-    final deliveryDate =
-        now.add(const Duration(days: AppConstants.deliveryLeadDays));
-    final db = FirebaseFirestore.instance;
-    final batch = db.batch();
+      for (final item in items) {
+        final orderRef = db.collection('users/$uid/orders').doc();
+        final cartRef = db.collection('users/$uid/cart').doc(item.id);
 
-    for (final item in items) {
-      final orderRef = db.collection('users/$uid/orders').doc();
-      final cartRef = db.collection('users/$uid/cart').doc(item.id);
+        batch.set(orderRef, {
+          'productId': item.productId,
+          'productName': item.productName,
+          'productPrice': item.productPrice,
+          'productImageUrl': item.productImageUrl,
+          'quantity': item.quantity,
+          'orderedAt': now.toIso8601String(),
+          'deliveryDate': deliveryDate.toIso8601String(),
+          'status': AppConstants.processingOrderStatus,
+        });
+        batch.delete(cartRef);
+      }
 
-      batch.set(orderRef, {
-        'productId': item.productId,
-        'productName': item.productName,
-        'productPrice': item.productPrice,
-        'productImageUrl': item.productImageUrl,
-        'quantity': item.quantity,
-        'orderedAt': now.toIso8601String(),
-        'deliveryDate': deliveryDate.toIso8601String(),
-        'status': AppConstants.processingOrderStatus,
-      });
-      batch.delete(cartRef);
+      await batch.commit();
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Checkout successful! ${items.length} item(s) ordered.',
+          ),
+          backgroundColor: AppTheme.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    } catch (error, stackTrace) {
+      await MonitoringService.captureException(
+        error,
+        stackTrace: stackTrace,
+        hint: 'cart_checkout_now',
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Checkout failed. Please try again.'),
+          backgroundColor: AppTheme.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    } finally {
+      await MonitoringService.stopTrace(trace);
     }
-
-    await batch.commit();
-
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Checkout successful! ${items.length} item(s) ordered.',
-        ),
-        backgroundColor: AppTheme.green,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    );
   }
 
   @override

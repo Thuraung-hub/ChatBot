@@ -7,6 +7,7 @@ import '../app_theme.dart';
 import '../providers/chat_provider.dart';
 import '../services/auth_service.dart';
 import '../services/gemini_client.dart';
+import '../services/monitoring_service.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -62,19 +63,72 @@ class _ChatScreenState extends State<ChatScreen> {
     final uid = auth.user?.uid;
     if (uid == null) return;
 
+    final existingWelcome = await FirebaseFirestore.instance
+        .collection('chat')
+        .where('userId', isEqualTo: uid)
+        .where('type', isEqualTo: 'welcome')
+        .limit(1)
+        .get();
+
+    if (existingWelcome.docs.isNotEmpty) {
+      return;
+    }
+
     await FirebaseFirestore.instance.collection('chat').add({
       'userId': uid,
       'sender': 'bot',
       'userName': 'Shop Bot',
+      'type': 'welcome',
       'text':
           "Hey there! 👋 I'm your personal style & tech assistant and you can ask about with the products name,category and delivery information  .",
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
 
+  bool _containsWord(String text, String word) {
+    final regex = RegExp('\\b${RegExp.escape(word)}\\b', caseSensitive: false);
+    return regex.hasMatch(text);
+  }
+
+  String _formatDate(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '$day/$month/${date.year}';
+  }
+
+  String? _buildQuickLocalReply(String message, String userName) {
+    final query = message.toLowerCase();
+
+    if (_containsWord(query, 'delivery') ||
+        query.contains('how long') ||
+        (query.contains('delivery') && _containsWord(query, 'date'))) {
+      final now = DateTime.now();
+      final startDate = now.add(const Duration(days: 2));
+      final endDate = now.add(
+        const Duration(days: AppConstants.deliveryLeadDays),
+      );
+      return 'Hello $userName! Your order is currently being processed. You can expect delivery between ${_formatDate(startDate)} and ${_formatDate(endDate)}. We\'ll send you a notification as soon as it out for delivery.';
+    }
+
+    if (_containsWord(query, 'hi') || _containsWord(query, 'hello')) {
+      return 'Hey! Great style starts with the right tech. What are you looking for today?';
+    }
+
+    if (_containsWord(query, 'help') || _containsWord(query, 'assist')) {
+      return 'I can help with product info, iPhone models, apparel, and delivery timelines. What would you like to know?';
+    }
+
+    if (_containsWord(query, 'thanks') || _containsWord(query, 'thank you')) {
+      return 'You\'re welcome! Ask me anytime if you need more help.';
+    }
+
+    return null;
+  }
+
   /// BOT REPLY FUNCTION
-  Future<void> _botReply(String message, String uid) async {
-    final reply = await _chatProvider.ask(message);
+  Future<void> _botReply(String message, String uid, String userName) async {
+    final quickReply = _buildQuickLocalReply(message, userName);
+    final reply = quickReply ?? await _chatProvider.ask(message);
 
     await FirebaseFirestore.instance.collection('chat').add({
       'userId': uid,
@@ -92,24 +146,48 @@ class _ChatScreenState extends State<ChatScreen> {
     final auth = context.read<AuthService>();
     if (auth.user == null || auth.profile == null) return;
 
+    final trace = await MonitoringService.startTrace('chat_send_message');
     setState(() => _sending = true);
 
     final text = _controller.text.trim();
     _controller.clear();
 
-    /// SAVE USER MESSAGE
-    await FirebaseFirestore.instance.collection('chat').add({
-      'userId': auth.user!.uid,
-      'sender': 'user',
-      'userName': auth.profile!.name,
-      'text': text,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      /// SAVE USER MESSAGE
+      await FirebaseFirestore.instance.collection('chat').add({
+        'userId': auth.user!.uid,
+        'sender': 'user',
+        'userName': auth.profile!.name,
+        'text': text,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
-    /// BOT REPLY
-    await _botReply(text, auth.user!.uid);
-
-    setState(() => _sending = false);
+      /// BOT REPLY
+      await _botReply(text, auth.user!.uid, auth.profile!.name);
+    } catch (error, stackTrace) {
+      await MonitoringService.captureException(
+        error,
+        stackTrace: stackTrace,
+        hint: 'chat_send_message',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Unable to send message. Please try again.'),
+            backgroundColor: AppTheme.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _sending = false);
+      }
+      await MonitoringService.stopTrace(trace);
+    }
   }
 
   @override

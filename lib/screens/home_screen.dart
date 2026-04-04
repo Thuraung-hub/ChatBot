@@ -5,6 +5,7 @@ import '../config/app_constants.dart';
 import '../app_theme.dart';
 import '../models/product.dart';
 import '../services/auth_service.dart';
+import '../services/monitoring_service.dart';
 import '../widgets/product_card.dart';
 
 const _sampleProducts = [
@@ -96,42 +97,66 @@ class HomeScreen extends StatelessWidget {
       Navigator.pushNamed(context, Routes.login.path);
       return;
     }
-    final uid = auth.user!.uid;
-    final db = FirebaseFirestore.instance;
-    final cartSnap = await db.collection('users/$uid/cart').get();
-    final existing =
-        cartSnap.docs.where((d) => d.data()['productId'] == product.id);
+    final trace = await MonitoringService.startTrace('home_add_to_cart');
+    try {
+      final uid = auth.user!.uid;
+      final db = FirebaseFirestore.instance;
+      final cartRef = db.collection('users/$uid/cart');
 
-    if (existing.isNotEmpty) {
-      await db.collection('users/$uid/cart').doc(existing.first.id).update({
-        'quantity': FieldValue.increment(1),
-      });
-    } else {
-      await db.collection('users/$uid/cart').add({
-        'productId': product.id,
-        'quantity': 1,
-        'productName': product.name,
-        'productPrice': product.price,
-        'productImageUrl': product.imageUrl,
-      });
-    }
+      final existingSnap = await cartRef
+          .where('productId', isEqualTo: product.id)
+          .limit(1)
+          .get();
 
-    if (!context.mounted) return;
+      if (existingSnap.docs.isNotEmpty) {
+        await cartRef.doc(existingSnap.docs.first.id).update({
+          'quantity': FieldValue.increment(1),
+        });
+      } else {
+        await cartRef.add({
+          'productId': product.id,
+          'quantity': 1,
+          'productName': product.name,
+          'productPrice': product.price,
+          'productImageUrl': product.imageUrl,
+        });
+      }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Added to cart'),
-        action: SnackBarAction(
-          label: 'Checkout Now',
-          textColor: Colors.white,
-          onPressed: () => Navigator.pushNamed(context, Routes.cart.path),
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Added to cart'),
+          action: SnackBarAction(
+            label: 'Checkout Now',
+            textColor: Colors.white,
+            onPressed: () => Navigator.pushNamed(context, Routes.cart.path),
+          ),
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          backgroundColor: AppTheme.primary,
         ),
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        backgroundColor: AppTheme.primary,
-      ),
-    );
+      );
+    } catch (error, stackTrace) {
+      await MonitoringService.captureException(
+        error,
+        stackTrace: stackTrace,
+        hint: 'home_add_to_cart',
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Could not add item to cart. Please try again.'),
+          backgroundColor: AppTheme.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    } finally {
+      await MonitoringService.stopTrace(trace);
+    }
   }
 
   Future<void> _deleteProduct(String productId) async {
@@ -213,61 +238,64 @@ class HomeScreen extends StatelessWidget {
               ),
 
               // Categories
-              ...grouped.entries.map((entry) {
+              ...grouped.entries.expand((entry) {
                 final category = entry.key;
                 final categoryProducts = entry.value;
-                return SliverToBoxAdapter(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 32),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Row(
-                          children: [
-                            Text(category,
-                                style: const TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w900,
-                                    color: AppTheme.textGray)),
-                            const SizedBox(width: 12),
-                            Expanded(
-                                child: Container(
-                                    height: 1, color: AppTheme.borderGray)),
-                            const SizedBox(width: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppTheme.primaryLight,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                '${categoryProducts.length} Items',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppTheme.primary,
+                return <Widget>[
+                  SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 32),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Row(
+                            children: [
+                              Text(category,
+                                  style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w900,
+                                      color: AppTheme.textGray)),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                  child: Container(
+                                      height: 1, color: AppTheme.borderGray)),
+                              const SizedBox(width: 12),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryLight,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  '${categoryProducts.length} Items',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.primary,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    sliver: SliverGrid(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 0.68,
                       ),
-                      const SizedBox(height: 16),
-                      GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 0.68,
-                        ),
-                        itemCount: categoryProducts.length,
-                        itemBuilder: (context, i) {
+                      delegate: SliverChildBuilderDelegate(
+                        (context, i) {
                           final product = categoryProducts[i];
                           return ProductCard(
                             product: product,
@@ -275,10 +303,11 @@ class HomeScreen extends StatelessWidget {
                             onDelete: () => _deleteProduct(product.id),
                           );
                         },
+                        childCount: categoryProducts.length,
                       ),
-                    ],
+                    ),
                   ),
-                );
+                ];
               }),
 
               // Footer

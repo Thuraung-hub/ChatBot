@@ -1,7 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_performance/firebase_performance.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'firebase_options.dart';
 import 'app_theme.dart';
 import 'config/app_config.dart';
@@ -28,17 +33,95 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  await FirebasePerformance.instance
+      .setPerformanceCollectionEnabled(Config.enableFirebasePerformance);
+
+  final dsn = Config.sentryDsn;
+  if (dsn != null) {
+    await SentryFlutter.init(
+      (options) {
+        options.dsn = dsn;
+        options.tracesSampleRate = 0.2;
+      },
+      appRunner: () => runApp(const PinkyShopApp()),
+    );
+    return;
+  }
+
   runApp(const PinkyShopApp());
 }
 
-class PinkyShopApp extends StatelessWidget {
+class PinkyShopApp extends StatefulWidget {
   const PinkyShopApp({super.key});
+
+  @override
+  State<PinkyShopApp> createState() => _PinkyShopAppState();
+}
+
+class _PinkyShopAppState extends State<PinkyShopApp> {
+  final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+  bool _offlineShown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _connectivitySub =
+        Connectivity().onConnectivityChanged.listen(_onConnectivityChanged);
+  }
+
+  void _onConnectivityChanged(List<ConnectivityResult> results) {
+    final messenger = _scaffoldMessengerKey.currentState;
+    if (messenger == null) return;
+
+    final isOffline =
+        results.isEmpty || results.contains(ConnectivityResult.none);
+
+    if (isOffline && !_offlineShown) {
+      _offlineShown = true;
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text('No internet connection'),
+          backgroundColor: AppTheme.red,
+          duration: const Duration(days: 1),
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
+
+    if (!isOffline && _offlineShown) {
+      _offlineShown = false;
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: const Text('Connection restored'),
+            backgroundColor: AppTheme.green,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+    }
+  }
+
+  @override
+  void dispose() {
+    _connectivitySub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => AuthService(),
       child: MaterialApp(
+        scaffoldMessengerKey: _scaffoldMessengerKey,
         title: 'Pinky Shop',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.theme,

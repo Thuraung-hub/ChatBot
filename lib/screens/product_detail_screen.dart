@@ -8,6 +8,7 @@ import '../app_theme.dart';
 import '../models/product.dart';
 import '../models/user_profile.dart';
 import '../services/auth_service.dart';
+import '../services/monitoring_service.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final String productId;
@@ -44,42 +45,72 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       return false;
     }
     setState(() => _adding = true);
-    final uid = auth.user!.uid;
-    final db = FirebaseFirestore.instance;
-    final cartSnap = await db.collection('users/$uid/cart').get();
-    final existing =
-        cartSnap.docs.where((d) => d.data()['productId'] == product.id);
-    if (existing.isNotEmpty) {
-      await db
-          .collection('users/$uid/cart')
-          .doc(existing.first.id)
-          .update({'quantity': FieldValue.increment(1)});
-    } else {
-      await db.collection('users/$uid/cart').add({
-        'productId': product.id,
-        'quantity': 1,
-        'productName': product.name,
-        'productPrice': product.price,
-        'productImageUrl': product.imageUrl,
-      });
-    }
-    setState(() => _adding = false);
-    if (!context.mounted) return true;
-    if (showSnack) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Added to cart'),
-          action: SnackBarAction(
-            label: 'Checkout Now',
-            textColor: Colors.white,
-            onPressed: () => Navigator.pushNamed(context, Routes.cart.path),
+    final trace = await MonitoringService.startTrace('product_add_to_cart');
+    try {
+      final uid = auth.user!.uid;
+      final db = FirebaseFirestore.instance;
+      final cartRef = db.collection('users/$uid/cart');
+
+      final existingSnap = await cartRef
+          .where('productId', isEqualTo: product.id)
+          .limit(1)
+          .get();
+
+      if (existingSnap.docs.isNotEmpty) {
+        await cartRef
+            .doc(existingSnap.docs.first.id)
+            .update({'quantity': FieldValue.increment(1)});
+      } else {
+        await cartRef.add({
+          'productId': product.id,
+          'quantity': 1,
+          'productName': product.name,
+          'productPrice': product.price,
+          'productImageUrl': product.imageUrl,
+        });
+      }
+
+      if (!context.mounted) return true;
+      if (showSnack) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: const Text('Added to cart'),
+            action: SnackBarAction(
+              label: 'Checkout Now',
+              textColor: Colors.white,
+              onPressed: () => Navigator.pushNamed(context, Routes.cart.path),
+            ),
+            duration: const Duration(seconds: 3),
+            backgroundColor: AppTheme.primary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12))));
+      }
+      return true;
+    } catch (error, stackTrace) {
+      await MonitoringService.captureException(
+        error,
+        stackTrace: stackTrace,
+        hint: 'product_add_to_cart',
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Could not add item to cart. Please try again.'),
+            backgroundColor: AppTheme.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
-          duration: const Duration(seconds: 3),
-          backgroundColor: AppTheme.primary,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))));
+        );
+      }
+      return false;
+    } finally {
+      await MonitoringService.stopTrace(trace);
+      if (mounted) {
+        setState(() => _adding = false);
+      }
     }
-    return true;
   }
 
   Future<void> _buyNow(BuildContext context, Product product) async {
@@ -89,13 +120,36 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       return;
     }
 
-    setState(() => _buyingNow = true);
-    await Future.delayed(const Duration(
-        milliseconds: AppConstants.quickCheckoutDelayMilliseconds));
-    if (!context.mounted) return;
-    setState(() => _buyingNow = false);
+    final trace = await MonitoringService.startTrace('product_buy_now');
+    try {
+      setState(() => _buyingNow = true);
+      await Future.delayed(const Duration(
+          milliseconds: AppConstants.quickCheckoutDelayMilliseconds));
+      if (!context.mounted) return;
+      setState(() => _buyingNow = false);
 
-    await _showBuyNowDialog(context, product, auth.user!.uid);
+      await _showBuyNowDialog(context, product, auth.user!.uid);
+    } catch (error, stackTrace) {
+      await MonitoringService.captureException(
+        error,
+        stackTrace: stackTrace,
+        hint: 'product_buy_now',
+      );
+      if (!context.mounted) return;
+      setState(() => _buyingNow = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Unable to start checkout. Please try again.'),
+          backgroundColor: AppTheme.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    } finally {
+      await MonitoringService.stopTrace(trace);
+    }
   }
 
   Future<void> _completePurchase(
@@ -211,16 +265,40 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Future<void> _postComment(BuildContext context, UserProfile profile) async {
     if (!(_commentFormKey.currentState?.validate() ?? false)) return;
     setState(() => _postingComment = true);
-    await FirebaseFirestore.instance
-        .collection('products/${widget.productId}/comments')
-        .add({
-      'userId': profile.id,
-      'userName': profile.name,
-      'text': _commentController.text.trim(),
-      'createdAt': DateTime.now().toIso8601String(),
-    });
-    _commentController.clear();
-    setState(() => _postingComment = false);
+    final trace = await MonitoringService.startTrace('product_post_comment');
+    try {
+      await FirebaseFirestore.instance
+          .collection('products/${widget.productId}/comments')
+          .add({
+        'userId': profile.id,
+        'userName': profile.name,
+        'text': _commentController.text.trim(),
+        'createdAt': DateTime.now().toIso8601String(),
+      });
+      _commentController.clear();
+    } catch (error, stackTrace) {
+      await MonitoringService.captureException(
+        error,
+        stackTrace: stackTrace,
+        hint: 'product_post_comment',
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Failed to post comment. Please try again.'),
+          backgroundColor: AppTheme.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    } finally {
+      await MonitoringService.stopTrace(trace);
+      if (mounted) {
+        setState(() => _postingComment = false);
+      }
+    }
   }
 
   Future<void> _deleteProduct(BuildContext context) async {

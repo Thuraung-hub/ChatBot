@@ -70,6 +70,17 @@ class Config {
   /// Gemini API key used by AI service calls.
   static String get geminiApiKey => _requireEnv('GEMINI_API_KEY');
 
+  static String? get sentryDsn {
+    final dsn = dotenv.env['SENTRY_DSN'];
+    if (dsn == null || dsn.isEmpty) return null;
+    return dsn;
+  }
+
+  static bool get enableFirebasePerformance {
+    final value = dotenv.env['ENABLE_FIREBASE_PERFORMANCE'];
+    return (value ?? 'true').toLowerCase() == 'true';
+  }
+
   /// Firebase Hosting URL (for reference)
   static const String firebaseHostingUrl =
       'https://chatbot-flutter-7b34f.web.app';
