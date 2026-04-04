@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../config/app_constants.dart';
 import '../app_theme.dart';
-import '../providers/auth_provider.dart' as app;
+import '../services/auth_service.dart';
 import 'buy_item_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
-  Future<void> _handleLogout(
-      BuildContext context, app.AuthProvider auth) async {
+  Future<void> _handleLogout(BuildContext context, AuthService auth) async {
     await auth.signOut();
     if (context.mounted) {
-      Navigator.pushReplacementNamed(context, '/login');
+      Navigator.pushReplacementNamed(context, Routes.login.path);
     }
   }
 
@@ -26,7 +26,7 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<app.AuthProvider>();
+    final auth = context.watch<AuthService>();
     final profile = auth.profile;
     final isAdmin = auth.isAdmin;
 
@@ -114,7 +114,8 @@ class ProfileScreen extends StatelessWidget {
                             color: AppTheme.red, size: 18),
                         label: const Text('Logout',
                             style: TextStyle(
-                                color: AppTheme.red, fontWeight: FontWeight.w700)),
+                                color: AppTheme.red,
+                                fontWeight: FontWeight.w700)),
                         style: TextButton.styleFrom(
                           backgroundColor: AppTheme.redLight,
                           shape: RoundedRectangleBorder(
@@ -124,6 +125,23 @@ class ProfileScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 32),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: auth.processing
+                          ? null
+                          : () => _confirmDeleteAccount(context, auth),
+                      icon: const Icon(Icons.delete_forever_rounded),
+                      label: const Text('Delete Account'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.red,
+                        side: const BorderSide(color: AppTheme.red),
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
 
                   // Account info section
                   Text('ACCOUNT INFORMATION',
@@ -165,6 +183,47 @@ class ProfileScreen extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _confirmDeleteAccount(
+      BuildContext context, AuthService auth) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Delete Account'),
+        content: const Text(
+          'This will permanently erase your account, email, and chat history. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: AppTheme.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete != true || !context.mounted) return;
+
+    try {
+      await auth.deleteAccount();
+      if (context.mounted) {
+        Navigator.pushReplacementNamed(context, Routes.login.path);
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    }
+  }
 }
 
 class _InfoTile extends StatelessWidget {
@@ -172,7 +231,8 @@ class _InfoTile extends StatelessWidget {
   final String label;
   final String value;
 
-  const _InfoTile({required this.icon, required this.label, required this.value});
+  const _InfoTile(
+      {required this.icon, required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {

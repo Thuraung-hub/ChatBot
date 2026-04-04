@@ -1,3 +1,5 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 /// Environment configuration for API base URLs
 enum Environment {
   development,
@@ -15,31 +17,51 @@ class Config {
 
   /// Get the base API URL based on current environment
   static String get apiBaseUrl {
+    final override = dotenv.env['API_BASE_URL'];
+    if (override != null && override.isNotEmpty) {
+      return override;
+    }
+
     switch (_environment) {
       case Environment.development:
-        return 'http://192.168.1.100:3000/api'; // Local dev server
+        return dotenv.env['API_BASE_URL_DEVELOPMENT'] ??
+            'https://localhost:3000/api';
       case Environment.staging:
-        return 'https://staging-api.pinkshop.com/api';
+        return dotenv.env['API_BASE_URL_STAGING'] ??
+            'https://staging-api.pinkshop.com/api';
       case Environment.production:
         // Firebase Hosting deployment - point to your backend API
-        return 'https://api.pinkshop.com/api'; // Change to your production API
+        return dotenv.env['API_BASE_URL_PRODUCTION'] ??
+            'https://api.pinkshop.com/api';
     }
   }
 
   /// Get the API key based on current environment
   static String get apiKey {
+    final override = dotenv.env['API_KEY'];
+    if (override != null && override.isNotEmpty) {
+      return override;
+    }
+
     switch (_environment) {
       case Environment.development:
-        return 'dev-api-key-12345';
+        return dotenv.env['API_KEY_DEVELOPMENT'] ?? 'dev-api-key-12345';
       case Environment.staging:
-        return 'staging-api-key-67890';
+        return dotenv.env['API_KEY_STAGING'] ?? 'staging-api-key-67890';
       case Environment.production:
-        return 'prod-api-key-secret';
+        return dotenv.env['API_KEY_PRODUCTION'] ?? 'prod-api-key-secret';
     }
   }
 
+  static String get authRegisterEndpoint =>
+      dotenv.env['AUTH_REGISTER_ENDPOINT'] ?? 'auth/register';
+
+  static String get deleteAccountEndpoint =>
+      dotenv.env['DELETE_ACCOUNT_ENDPOINT'] ?? 'users/me';
+
   /// Firebase Hosting URL (for reference)
-  static const String firebaseHostingUrl = 'https://chatbot-flutter-7b34f.web.app';
+  static const String firebaseHostingUrl =
+      'https://chatbot-flutter-7b34f.web.app';
 
   /// Check if in development mode
   static bool get isDevelopment => _environment == Environment.development;

@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import '../config/app_constants.dart';
 import '../app_theme.dart';
 import '../models/cart_item.dart';
-import '../providers/auth_provider.dart' as app;
 import 'package:cached_network_image/cached_network_image.dart';
+import '../services/auth_service.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final uid = context.read<app.AuthProvider>().user?.uid;
+    final uid = context.read<AuthService>().user?.uid;
     if (uid == null) return const SizedBox.shrink();
 
     return Scaffold(
@@ -40,7 +41,7 @@ class CartScreen extends StatelessWidget {
                   CartItem.fromMap(d.id, d.data() as Map<String, dynamic>))
               .toList();
 
-            final total = items.fold<double>(
+          final total = items.fold<double>(
               0, (runningTotal, item) => runningTotal + item.subtotal);
 
           return Column(
@@ -70,9 +71,8 @@ class _CartItemTile extends StatelessWidget {
   const _CartItemTile({required this.item, required this.uid});
 
   Future<void> _updateQty(int delta) async {
-    final ref = FirebaseFirestore.instance
-        .collection('users/$uid/cart')
-        .doc(item.id);
+    final ref =
+        FirebaseFirestore.instance.collection('users/$uid/cart').doc(item.id);
     if (item.quantity + delta <= 0) {
       await ref.delete();
     } else {
@@ -166,7 +166,8 @@ class _CartItemTile extends StatelessWidget {
                       ),
                       child: Row(
                         children: [
-                          _QtyBtn(icon: Icons.remove, onTap: () => _updateQty(-1)),
+                          _QtyBtn(
+                              icon: Icons.remove, onTap: () => _updateQty(-1)),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             child: Text('${item.quantity}',
@@ -235,7 +236,7 @@ class _OrderSummary extends StatelessWidget {
         border: const Border(top: BorderSide(color: AppTheme.borderGray)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 20,
               offset: const Offset(0, -4))
         ],
@@ -277,7 +278,8 @@ class _OrderSummary extends StatelessWidget {
                     backgroundColor: AppTheme.dark,
                     padding: const EdgeInsets.symmetric(vertical: 18)),
                 child: const Text('Checkout Now',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+                    style:
+                        TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
               ),
             ),
             const SizedBox(height: 12),
@@ -306,8 +308,8 @@ class _Row extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label,
-            style:
-                const TextStyle(color: AppTheme.textGray, fontWeight: FontWeight.w500)),
+            style: const TextStyle(
+                color: AppTheme.textGray, fontWeight: FontWeight.w500)),
         Text(value,
             style: TextStyle(
                 color: valueColor ?? AppTheme.textGray,
@@ -350,7 +352,8 @@ class _EmptyCart extends StatelessWidget {
                 style: TextStyle(color: AppTheme.textGray)),
             const SizedBox(height: 32),
             ElevatedButton.icon(
-              onPressed: () => Navigator.pushReplacementNamed(context, '/home'),
+              onPressed: () =>
+                  Navigator.pushReplacementNamed(context, Routes.home.path),
               icon: const Icon(Icons.arrow_forward_rounded),
               label: const Text('Start Shopping'),
             ),

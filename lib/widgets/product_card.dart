@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
+import '../config/app_constants.dart';
 import '../app_theme.dart';
 import '../models/product.dart';
-import '../providers/auth_provider.dart' as app;
+import '../services/auth_service.dart';
 
 class ProductCard extends StatelessWidget {
   final Product product;
@@ -19,11 +20,11 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isAdmin = context.watch<app.AuthProvider>().isAdmin;
+    final isAdmin = context.watch<AuthService>().isAdmin;
 
     return GestureDetector(
-      onTap: () =>
-          Navigator.pushNamed(context, '/product', arguments: product.id),
+      onTap: () => Navigator.pushNamed(context, Routes.product.path,
+          arguments: product.id),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,

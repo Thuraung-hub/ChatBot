@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../config/app_constants.dart';
+import '../config/app_validators.dart';
 import '../app_theme.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -11,6 +13,7 @@ class AdminDashboard extends StatefulWidget {
 }
 
 class _AdminDashboardState extends State<AdminDashboard> {
+  final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   final _priceCtrl = TextEditingController();
@@ -35,35 +38,20 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Future<void> _handleSubmit() async {
-    if (_nameCtrl.text.isEmpty ||
-        _descCtrl.text.isEmpty ||
-        _priceCtrl.text.isEmpty ||
-        _imageCtrl.text.isEmpty ||
-        _categoryCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill in all required fields'),
-          backgroundColor: AppTheme.red,
-        ),
-      );
+    if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
 
-    final parsedPrice = double.tryParse(_priceCtrl.text);
-    if (parsedPrice == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid price'),
-          backgroundColor: AppTheme.red,
-        ),
-      );
-      return;
-    }
+    final parsedPrice = double.parse(_priceCtrl.text.trim());
 
-    setState(() { _loading = true; _success = false; });
+    setState(() {
+      _loading = true;
+      _success = false;
+    });
 
     try {
-      final docRef = await FirebaseFirestore.instance.collection('products').add({
+      final docRef =
+          await FirebaseFirestore.instance.collection('products').add({
         'name': _nameCtrl.text.trim(),
         'description': _descCtrl.text.trim(),
         'price': parsedPrice,
@@ -113,286 +101,290 @@ class _AdminDashboardState extends State<AdminDashboard> {
         children: [
           SingleChildScrollView(
             padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                const Text('Admin Dashboard',
-                    style: TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w900,
-                        color: AppTheme.textGray)),
-                const SizedBox(height: 4),
-                const Text('Manage your store inventory and add new products.',
-                    style: TextStyle(color: AppTheme.textGray, fontSize: 15)),
-                const SizedBox(height: 28),
+            child: Form(
+              key: _formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  const Text('Admin Dashboard',
+                      style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w900,
+                          color: AppTheme.textGray)),
+                  const SizedBox(height: 4),
+                  const Text(
+                      'Manage your store inventory and add new products.',
+                      style: TextStyle(color: AppTheme.textGray, fontSize: 15)),
+                  const SizedBox(height: 28),
 
-                // Form card
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppTheme.borderGray),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.primary.withValues(alpha: 0.06),
-                        blurRadius: 32,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryLight,
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: const Icon(Icons.add_rounded,
-                                color: AppTheme.primary, size: 22),
-                          ),
-                          const SizedBox(width: 12),
-                          const Text('Add New Product',
-                              style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppTheme.dark)),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-
-                      if (_success) ...[
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFECFDF5),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppTheme.green.withValues(alpha: 0.3)),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.check_circle_outline_rounded,
-                                  color: AppTheme.green, size: 18),
-                              SizedBox(width: 8),
-                              Text('Product added successfully!',
-                                  style: TextStyle(
-                                      color: AppTheme.green,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13)),
-                            ],
-                          ),
+                  // Form card
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: AppTheme.borderGray),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primary.withValues(alpha: 0.06),
+                          blurRadius: 32,
+                          offset: const Offset(0, 8),
                         ),
-                        const SizedBox(height: 20),
                       ],
-
-                      // Row 1: Name + Category
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _FormField(
-                              controller: _nameCtrl,
-                              label: 'Product Name *',
-                              hint: 'e.g. Wireless Mouse',
-                              icon: Icons.inventory_2_outlined,
+                    ),
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryLight,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(Icons.add_rounded,
+                                  color: AppTheme.primary, size: 22),
+                            ),
+                            const SizedBox(width: 12),
+                            const Text('Add New Product',
+                                style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.dark)),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        if (_success) ...[
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFECFDF5),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color: AppTheme.green.withValues(alpha: 0.3)),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.check_circle_outline_rounded,
+                                    color: AppTheme.green, size: 18),
+                                SizedBox(width: 8),
+                                Text('Product added successfully!',
+                                    style: TextStyle(
+                                        color: AppTheme.green,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13)),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: _FormField(
-                              controller: _categoryCtrl,
-                              label: 'Category *',
-                              hint: 'e.g. Electronics',
-                              icon: Icons.label_outline_rounded,
-                            ),
-                          ),
+                          const SizedBox(height: 20),
                         ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Price
-                      _FormField(
-                        controller: _priceCtrl,
-                        label: 'Price (\$) *',
-                        hint: '99.99',
-                        icon: Icons.attach_money_rounded,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Image URL
-                      _FormField(
-                        controller: _imageCtrl,
-                        label: 'Image URL *',
-                        hint: 'https://images.unsplash.com/...',
-                        icon: Icons.image_outlined,
-                        keyboardType: TextInputType.url,
-                        onChanged: (_) => setState(() {}),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Live preview if image URL provided
-                      if (_imageCtrl.text.isNotEmpty) ...[
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: AppTheme.bgGray,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: AppTheme.borderGray),
-                          ),
-                          child: Row(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: SizedBox(
-                                  width: 72,
-                                  height: 72,
-                                  child: CachedNetworkImage(
-                                    imageUrl: _imageCtrl.text,
-                                    fit: BoxFit.cover,
-                                    errorWidget: (_, __, ___) => Container(
-                                      color: AppTheme.borderGray,
-                                      child: const Icon(Icons.broken_image_outlined,
-                                          color: AppTheme.textGray),
-                                    ),
-                                  ),
-                                ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _FormField(
+                                controller: _nameCtrl,
+                                label: 'Product Name *',
+                                hint: 'e.g. Wireless Mouse',
+                                icon: Icons.inventory_2_outlined,
+                                validator: AppValidators.productName,
                               ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text('LIVE PREVIEW',
-                                        style: TextStyle(
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.w800,
-                                            color: AppTheme.textGray,
-                                            letterSpacing: 1)),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      _nameCtrl.text.isEmpty ? 'Product Name' : _nameCtrl.text,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          color: AppTheme.dark),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    Text(
-                                      '\$${_priceCtrl.text.isEmpty ? '0.00' : _priceCtrl.text}',
-                                      style: const TextStyle(
-                                          color: AppTheme.primary,
-                                          fontWeight: FontWeight.w900,
-                                          fontSize: 16),
-                                    ),
-                                  ],
-                                ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: _FormField(
+                                controller: _categoryCtrl,
+                                label: 'Category *',
+                                hint: 'e.g. Electronics',
+                                icon: Icons.label_outline_rounded,
+                                validator: AppValidators.category,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 16),
-                      ],
-
-                      // Description
-                      _FormField(
-                        controller: _descCtrl,
-                        label: 'Description *',
-                        hint: 'Tell us about the product...',
-                        icon: Icons.description_outlined,
-                        maxLines: 4,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Review (optional)
-                      _FormField(
-                        controller: _reviewCtrl,
-                        label: 'Featured Review (Optional)',
-                        hint: 'Add a featured review or testimonial...',
-                        icon: Icons.star_outline_rounded,
-                        maxLines: 3,
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Submit button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _loading ? null : _handleSubmit,
-                          icon: _loading
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                      color: Colors.white, strokeWidth: 2.5))
-                              : const Icon(Icons.add_rounded),
-                          label: Text(_loading ? 'Adding...' : 'Add Product to Store',
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-                          style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 18)),
+                        _FormField(
+                          controller: _priceCtrl,
+                          label: 'Price (\$) *',
+                          hint: '99.99',
+                          icon: Icons.attach_money_rounded,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          validator: AppValidators.price,
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Tips card
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Quick Tips',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 16),
-                      ...[
-                        'Use high-quality Unsplash URLs for product images.',
-                        'Keep descriptions concise but informative.',
-                        'Categories help users filter products easily.',
-                      ].map((tip) => Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
+                        const SizedBox(height: 16),
+                        _FormField(
+                          controller: _imageCtrl,
+                          label: 'Image URL *',
+                          hint: 'https://images.unsplash.com/...',
+                          icon: Icons.image_outlined,
+                          keyboardType: TextInputType.url,
+                          onChanged: (_) => setState(() {}),
+                          validator: AppValidators.url,
+                        ),
+                        const SizedBox(height: 16),
+                        if (_imageCtrl.text.isNotEmpty) ...[
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: AppTheme.bgGray,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppTheme.borderGray),
+                            ),
                             child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Container(
-                                  width: 6,
-                                  height: 6,
-                                  margin: const EdgeInsets.only(top: 6, right: 10),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: SizedBox(
+                                    width: 72,
+                                    height: 72,
+                                    child: CachedNetworkImage(
+                                      imageUrl: _imageCtrl.text,
+                                      fit: BoxFit.cover,
+                                      errorWidget: (_, __, ___) => Container(
+                                        color: AppTheme.borderGray,
+                                        child: const Icon(
+                                            Icons.broken_image_outlined,
+                                            color: AppTheme.textGray),
+                                      ),
+                                    ),
                                   ),
                                 ),
+                                const SizedBox(width: 14),
                                 Expanded(
-                                  child: Text(tip,
-                                      style: const TextStyle(
-                                          color: Color(0xFFc7d2fe),
-                                          fontSize: 13,
-                                          height: 1.5)),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('LIVE PREVIEW',
+                                          style: TextStyle(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w800,
+                                              color: AppTheme.textGray,
+                                              letterSpacing: 1)),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _nameCtrl.text.isEmpty
+                                            ? 'Product Name'
+                                            : _nameCtrl.text,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            color: AppTheme.dark),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        '\$${_priceCtrl.text.isEmpty ? '0.00' : _priceCtrl.text}',
+                                        style: const TextStyle(
+                                            color: AppTheme.primary,
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 16),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
-                          )),
-                    ],
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        _FormField(
+                          controller: _descCtrl,
+                          label: 'Description *',
+                          hint: 'Tell us about the product...',
+                          icon: Icons.description_outlined,
+                          maxLines: 4,
+                          validator: AppValidators.description,
+                        ),
+                        const SizedBox(height: 16),
+                        _FormField(
+                          controller: _reviewCtrl,
+                          label: 'Featured Review (Optional)',
+                          hint: 'Add a featured review or testimonial...',
+                          icon: Icons.star_outline_rounded,
+                          maxLines: 3,
+                          validator: AppValidators.review,
+                        ),
+                        const SizedBox(height: 24),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _loading ? null : _handleSubmit,
+                            icon: _loading
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                        color: Colors.white, strokeWidth: 2.5))
+                                : const Icon(Icons.add_rounded),
+                            label: Text(
+                                _loading ? 'Adding...' : 'Add Product to Store',
+                                style: const TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.w800)),
+                            style: ElevatedButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 18)),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 40),
-              ],
+
+                  const SizedBox(height: 20),
+
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Quick Tips',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 16),
+                        ...[
+                          'Use high-quality Unsplash URLs for product images.',
+                          'Keep descriptions concise but informative.',
+                          'Categories help users filter products easily.',
+                        ].map((tip) => Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    margin: const EdgeInsets.only(
+                                        top: 6, right: 10),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Text(tip,
+                                        style: const TextStyle(
+                                            color: Color(0xFFc7d2fe),
+                                            fontSize: 13,
+                                            height: 1.5)),
+                                  ),
+                                ],
+                              ),
+                            )),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                ],
+              ),
             ),
           ),
 
@@ -402,13 +394,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
               productId: _newProductId ?? '',
               onViewProduct: () {
                 setState(() => _showSuccessDialog = false);
-                Navigator.pushNamed(context, '/product',
+                Navigator.pushNamed(context, Routes.product.path,
                     arguments: _newProductId);
               },
               onAddAnother: () => setState(() => _showSuccessDialog = false),
               onBackHome: () {
                 setState(() => _showSuccessDialog = false);
-                Navigator.pushReplacementNamed(context, '/home');
+                Navigator.pushReplacementNamed(context, Routes.home.path);
               },
             ),
         ],
@@ -425,6 +417,7 @@ class _FormField extends StatelessWidget {
   final int? maxLines;
   final TextInputType? keyboardType;
   final ValueChanged<String>? onChanged;
+  final String? Function(String?)? validator;
 
   const _FormField({
     required this.controller,
@@ -434,6 +427,7 @@ class _FormField extends StatelessWidget {
     this.maxLines,
     this.keyboardType,
     this.onChanged,
+    this.validator,
   });
 
   @override
@@ -447,11 +441,13 @@ class _FormField extends StatelessWidget {
                 fontWeight: FontWeight.w700,
                 color: AppTheme.dark)),
         const SizedBox(height: 6),
-        TextField(
+        TextFormField(
           controller: controller,
           maxLines: maxLines ?? 1,
           keyboardType: keyboardType,
           onChanged: onChanged,
+          validator: validator,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
           decoration: InputDecoration(
             hintText: hint,
             prefixIcon: Icon(icon, color: AppTheme.textGray, size: 20),
@@ -489,7 +485,7 @@ class _SuccessDialog extends StatelessWidget {
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 40,
                   offset: const Offset(0, 16))
             ],
@@ -517,7 +513,8 @@ class _SuccessDialog extends StatelessWidget {
               const Text(
                 'Your new item is now live on the store for all customers.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppTheme.textGray, fontSize: 14, height: 1.5),
+                style: TextStyle(
+                    color: AppTheme.textGray, fontSize: 14, height: 1.5),
               ),
               const SizedBox(height: 28),
               SizedBox(

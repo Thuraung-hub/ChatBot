@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import '../config/app_constants.dart';
 import '../app_theme.dart';
 import '../models/product.dart';
-import '../providers/auth_provider.dart' as app;
+import '../services/auth_service.dart';
 import '../widgets/product_card.dart';
 
 const _sampleProducts = [
@@ -54,7 +55,8 @@ const _sampleProducts = [
   },
   {
     'name': 'Organic Cotton Hoodie',
-    'description': 'Sustainable and incredibly soft hoodie for everyday comfort.',
+    'description':
+        'Sustainable and incredibly soft hoodie for everyday comfort.',
     'price': 75.00,
     'imageUrl':
         'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&q=80&w=1000',
@@ -73,9 +75,9 @@ class HomeScreen extends StatelessWidget {
   }
 
   Future<void> _addToCart(BuildContext context, Product product) async {
-    final auth = context.read<app.AuthProvider>();
+    final auth = context.read<AuthService>();
     if (auth.user == null) {
-      Navigator.pushNamed(context, '/login');
+      Navigator.pushNamed(context, Routes.login.path);
       return;
     }
     final uid = auth.user!.uid;
@@ -208,7 +210,8 @@ class HomeScreen extends StatelessWidget {
                                     color: AppTheme.textGray)),
                             const SizedBox(width: 12),
                             Expanded(
-                                child: Container(height: 1, color: AppTheme.borderGray)),
+                                child: Container(
+                                    height: 1, color: AppTheme.borderGray)),
                             const SizedBox(width: 12),
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -282,14 +285,14 @@ class HomeScreen extends StatelessWidget {
 class _NavActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<app.AuthProvider>();
+    final auth = context.watch<AuthService>();
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (auth.isAdmin)
           TextButton.icon(
-            onPressed: () => Navigator.pushNamed(context, '/admin'),
+            onPressed: () => Navigator.pushNamed(context, Routes.admin.path),
             icon: const Icon(Icons.shield_outlined,
                 color: AppTheme.primary, size: 18),
             label: const Text('Admin',
@@ -305,16 +308,16 @@ class _NavActions extends StatelessWidget {
           IconButton(
             icon:
                 const Icon(Icons.shopping_cart_outlined, color: AppTheme.dark),
-            onPressed: () => Navigator.pushNamed(context, '/cart'),
+            onPressed: () => Navigator.pushNamed(context, Routes.cart.path),
           ),
         IconButton(
           icon: const Icon(Icons.chat_bubble_outline_rounded,
               color: AppTheme.dark),
-          onPressed: () => Navigator.pushNamed(context, '/chat'),
+          onPressed: () => Navigator.pushNamed(context, Routes.chat.path),
         ),
         IconButton(
           icon: const Icon(Icons.person_outline_rounded, color: AppTheme.dark),
-          onPressed: () => Navigator.pushNamed(context, '/profile'),
+          onPressed: () => Navigator.pushNamed(context, Routes.profile.path),
         ),
       ],
     );

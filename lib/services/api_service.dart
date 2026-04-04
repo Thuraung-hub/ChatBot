@@ -2,11 +2,12 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../config/app_config.dart';
+import '../config/app_constants.dart';
 
 class ApiService {
   // Get base URL from config
   static String get baseUrl => Config.apiBaseUrl;
-  
+
   // Get API key from config
   static String get apiKey => Config.apiKey;
 
@@ -18,16 +19,26 @@ class ApiService {
 
   ApiService._internal();
 
+  Uri _buildHttpsUri(String endpoint) {
+    final uri = Uri.parse('$baseUrl/$endpoint');
+    if (uri.scheme == 'https') {
+      return uri;
+    }
+    return uri.replace(scheme: 'https');
+  }
+
   // ============ GET REQUEST ============
   Future<Map<String, dynamic>> get(String endpoint) async {
     try {
-      final url = Uri.parse('$baseUrl/$endpoint');
+      final url = _buildHttpsUri(endpoint);
       debugPrint('🔵 GET: $url');
-      
-      final response = await http.get(
-        url,
-        headers: _getHeaders(),
-      ).timeout(const Duration(seconds: 30));
+
+      final response = await http
+          .get(
+            url,
+            headers: _getHeaders(),
+          )
+          .timeout(Duration(seconds: AppConstants.apiTimeoutSeconds));
 
       debugPrint('📦 Response: ${response.statusCode}');
       return _handleResponse(response);
@@ -43,15 +54,17 @@ class ApiService {
     Map<String, dynamic> body,
   ) async {
     try {
-      final url = Uri.parse('$baseUrl/$endpoint');
+      final url = _buildHttpsUri(endpoint);
       debugPrint('🔵 POST: $url');
       debugPrint('📤 Body: $body');
-      
-      final response = await http.post(
-        url,
-        headers: _getHeaders(),
-        body: jsonEncode(body),
-      ).timeout(const Duration(seconds: 30));
+
+      final response = await http
+          .post(
+            url,
+            headers: _getHeaders(),
+            body: jsonEncode(body),
+          )
+          .timeout(Duration(seconds: AppConstants.apiTimeoutSeconds));
 
       debugPrint('📦 Response: ${response.statusCode}');
       return _handleResponse(response);
@@ -67,15 +80,17 @@ class ApiService {
     Map<String, dynamic> body,
   ) async {
     try {
-      final url = Uri.parse('$baseUrl/$endpoint');
+      final url = _buildHttpsUri(endpoint);
       debugPrint('🔵 PUT: $url');
       debugPrint('📤 Body: $body');
-      
-      final response = await http.put(
-        url,
-        headers: _getHeaders(),
-        body: jsonEncode(body),
-      ).timeout(const Duration(seconds: 30));
+
+      final response = await http
+          .put(
+            url,
+            headers: _getHeaders(),
+            body: jsonEncode(body),
+          )
+          .timeout(Duration(seconds: AppConstants.apiTimeoutSeconds));
 
       debugPrint('📦 Response: ${response.statusCode}');
       return _handleResponse(response);
@@ -88,13 +103,15 @@ class ApiService {
   // ============ DELETE REQUEST ============
   Future<Map<String, dynamic>> delete(String endpoint) async {
     try {
-      final url = Uri.parse('$baseUrl/$endpoint');
+      final url = _buildHttpsUri(endpoint);
       debugPrint('🔵 DELETE: $url');
-      
-      final response = await http.delete(
-        url,
-        headers: _getHeaders(),
-      ).timeout(const Duration(seconds: 30));
+
+      final response = await http
+          .delete(
+            url,
+            headers: _getHeaders(),
+          )
+          .timeout(Duration(seconds: AppConstants.apiTimeoutSeconds));
 
       debugPrint('📦 Response: ${response.statusCode}');
       return _handleResponse(response);
@@ -116,7 +133,7 @@ class ApiService {
   // ============ HANDLE RESPONSE ============
   Map<String, dynamic> _handleResponse(http.Response response) {
     final body = response.body.isEmpty ? '{}' : response.body;
-    
+
     if (response.statusCode == 200 || response.statusCode == 201) {
       return jsonDecode(body);
     } else if (response.statusCode == 401) {

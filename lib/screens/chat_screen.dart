@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import '../config/app_constants.dart';
+import '../config/app_validators.dart';
 import '../app_theme.dart';
-import '../providers/auth_provider.dart' as app;
+import '../services/auth_service.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -12,6 +14,7 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   bool _sending = false;
@@ -30,7 +33,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _sendWelcomeMessageIfNeeded() async {
-    final auth = context.read<app.AuthProvider>();
+    final auth = context.read<AuthService>();
     final uid = auth.user?.uid;
     if (uid == null) return;
 
@@ -38,7 +41,8 @@ class _ChatScreenState extends State<ChatScreen> {
       'userId': uid,
       'sender': 'bot',
       'userName': 'Shop Bot',
-      'text': "Hey there! 👋 I'm your personal style & tech assistant and you can ask about with the products name,category and delivery information  .",
+      'text':
+          "Hey there! 👋 I'm your personal style & tech assistant and you can ask about with the products name,category and delivery information  .",
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
@@ -77,8 +81,8 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     if (_containsWord(query, 'thank') ||
-      _containsWord(query, 'thanks') ||
-      _containsWord(query, 'thank you')) {
+        _containsWord(query, 'thanks') ||
+        _containsWord(query, 'thank you')) {
       await FirebaseFirestore.instance.collection('chat').add({
         'userId': uid,
         'sender': 'bot',
@@ -95,8 +99,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
     String reply = "Sorry, I couldn't find any product.";
     final isReviewQuery = _containsWord(query, 'review') ||
-      _containsWord(query, 'reviews') ||
-      _containsWord(query, 'rating');
+        _containsWord(query, 'reviews') ||
+        _containsWord(query, 'rating');
 
     final docs = snapshot.docs;
 
@@ -161,9 +165,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   /// SEND MESSAGE
   Future<void> _sendMessage() async {
-    if (_controller.text.trim().isEmpty) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final auth = context.read<app.AuthProvider>();
+    final auth = context.read<AuthService>();
     if (auth.user == null || auth.profile == null) return;
 
     setState(() => _sending = true);
@@ -185,20 +189,26 @@ class _ChatScreenState extends State<ChatScreen> {
 
     setState(() => _sending = false);
 
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent + 200,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
+    Future.delayed(
+      const Duration(
+          milliseconds: AppConstants.chatAutoScrollDelayMilliseconds),
+      () {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent +
+                AppConstants.chatScrollOffset,
+            duration: const Duration(
+                milliseconds: AppConstants.chatScrollAnimationMilliseconds),
+            curve: Curves.easeOut,
+          );
+        }
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<app.AuthProvider>();
+    final auth = context.watch<AuthService>();
     final myUid = auth.user?.uid ?? '';
 
     return Scaffold(
@@ -211,7 +221,6 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
-          /// CHAT MESSAGES
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -221,23 +230,23 @@ class _ChatScreenState extends State<ChatScreen> {
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(
-                      child: CircularProgressIndicator(
-                          color: AppTheme.primary));
+                    child: CircularProgressIndicator(color: AppTheme.primary),
+                  );
                 }
 
-                final docs = [...snapshot.data!.docs]
-                  ..sort((a, b) {
-                    final aData = a.data() as Map<String, dynamic>;
-                    final bData = b.data() as Map<String, dynamic>;
-                    final aTime = aData['createdAt'] as Timestamp?;
-                    final bTime = bData['createdAt'] as Timestamp?;
+                final docs = snapshot.data!.docs;
+                docs.sort((a, b) {
+                  final aData = a.data() as Map<String, dynamic>;
+                  final bData = b.data() as Map<String, dynamic>;
+                  final aTime = aData['createdAt'] as Timestamp?;
+                  final bTime = bData['createdAt'] as Timestamp?;
 
-                    if (aTime == null && bTime == null) return 0;
-                    if (aTime == null) return -1;
-                    if (bTime == null) return 1;
+                  if (aTime == null && bTime == null) return 0;
+                  if (aTime == null) return -1;
+                  if (bTime == null) return 1;
 
-                    return aTime.compareTo(bTime);
-                  });
+                  return aTime.compareTo(bTime);
+                });
 
                 if (docs.isEmpty) {
                   return const Center(
@@ -267,8 +276,6 @@ class _ChatScreenState extends State<ChatScreen> {
               },
             ),
           ),
-
-          /// MESSAGE INPUT
           Container(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             decoration: const BoxDecoration(
@@ -277,38 +284,43 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             child: SafeArea(
               top: false,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      decoration: const InputDecoration(
-                        hintText: 'Ask about products...',
-                        prefixIcon: Icon(
-                          Icons.chat_bubble_outline_rounded,
-                          color: AppTheme.textGray,
+              child: Form(
+                key: _formKey,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _controller,
+                        validator: AppValidators.comment,
+                        decoration: const InputDecoration(
+                          hintText: 'Ask about products...',
+                          prefixIcon: Icon(
+                            Icons.chat_bubble_outline_rounded,
+                            color: AppTheme.textGray,
+                          ),
                         ),
+                        onFieldSubmitted: (_) => _sendMessage(),
                       ),
-                      onSubmitted: (_) => _sendMessage(),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  ElevatedButton(
-                    onPressed: _sending ? null : _sendMessage,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.all(16),
-                      minimumSize: const Size(0, 0),
+                    const SizedBox(width: 10),
+                    ElevatedButton(
+                      onPressed: _sending ? null : _sendMessage,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.all(16),
+                        minimumSize: const Size(0, 0),
+                      ),
+                      child: _sending
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                  color: Colors.white, strokeWidth: 2),
+                            )
+                          : const Icon(Icons.send_rounded, size: 20),
                     ),
-                    child: _sending
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2),
-                          )
-                        : const Icon(Icons.send_rounded, size: 20),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -354,8 +366,7 @@ class _MessageBubble extends StatelessWidget {
                 ),
               ),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: isMe ? AppTheme.primary : AppTheme.bgGray,
                 borderRadius: BorderRadius.only(

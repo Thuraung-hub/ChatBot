@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../services/auth_service.dart';
 import '../app_theme.dart';
-import '../providers/auth_provider.dart' as app;
 
 class BuyItemScreen extends StatelessWidget {
   const BuyItemScreen({super.key});
@@ -20,7 +20,7 @@ class BuyItemScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<app.AuthProvider>();
+    final auth = context.watch<AuthService>();
     final uid = auth.user?.uid;
 
     return Scaffold(
@@ -62,7 +62,8 @@ class BuyItemScreen extends StatelessWidget {
                   itemCount: orders.length,
                   itemBuilder: (context, index) {
                     final data = orders[index].data() as Map<String, dynamic>;
-                    final name = (data['productName'] ?? 'Unknown Item').toString();
+                    final name =
+                        (data['productName'] ?? 'Unknown Item').toString();
                     final price = (data['productPrice'] ?? 0).toDouble();
                     final image = (data['productImageUrl'] ?? '').toString();
                     final deliveryDate =

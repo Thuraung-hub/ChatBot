@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'app_theme.dart';
 import 'config/app_config.dart';
-import 'providers/auth_provider.dart' as app;
+import 'config/app_constants.dart';
+import 'services/auth_service.dart';
+import 'screens/registration_screen.dart';
 import 'screens/login_screen.dart';
-import 'screens/signup_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/cart_screen.dart';
 import 'screens/profile_screen.dart';
@@ -16,10 +18,13 @@ import 'screens/admin_dashboard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
+  await dotenv.load(fileName: '.env');
+
   // Set environment (change based on build configuration)
-  Config.setEnvironment(Environment.production); // For Firebase Hosting web deployment
-  
+  Config.setEnvironment(
+      Environment.production); // For Firebase Hosting web deployment
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -32,12 +37,12 @@ class PinkyShopApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => app.AuthProvider(),
+      create: (_) => AuthService(),
       child: MaterialApp(
         title: 'Pinky Shop',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.theme,
-        initialRoute: '/',
+        initialRoute: AppConstants.rootRoute,
         onGenerateRoute: _generateRoute,
       ),
     );
@@ -45,39 +50,39 @@ class PinkyShopApp extends StatelessWidget {
 
   Route<dynamic> _generateRoute(RouteSettings settings) {
     switch (settings.name) {
-      case '/':
+      case AppConstants.rootRoute:
         return MaterialPageRoute(
           builder: (_) => const _AuthGate(),
         );
-      case '/home':
+      case AppConstants.homeRoute:
         return MaterialPageRoute(
           builder: (_) => const _PrivateRoute(child: HomeScreen()),
         );
-      case '/login':
+      case AppConstants.loginRoute:
         return MaterialPageRoute(
           builder: (_) => const _PublicRoute(child: LoginScreen()),
         );
-      case '/signup':
+      case AppConstants.signupRoute:
         return MaterialPageRoute(
-          builder: (_) => const _PublicRoute(child: SignupScreen()),
+          builder: (_) => const _PublicRoute(child: RegistrationScreen()),
         );
-      case '/cart':
+      case AppConstants.cartRoute:
         return MaterialPageRoute(
           builder: (_) => const _PrivateRoute(child: CartScreen()),
         );
-      case '/profile':
+      case AppConstants.profileRoute:
         return MaterialPageRoute(
           builder: (_) => const _PrivateRoute(child: ProfileScreen()),
         );
-      case '/chat':
+      case AppConstants.chatRoute:
         return MaterialPageRoute(
           builder: (_) => const _PrivateRoute(child: ChatScreen()),
         );
-      case '/admin':
+      case AppConstants.adminRoute:
         return MaterialPageRoute(
           builder: (_) => const _AdminRoute(child: AdminDashboard()),
         );
-      case '/product':
+      case AppConstants.productRoute:
         final productId = settings.arguments as String? ?? '';
         return MaterialPageRoute(
           builder: (_) => _PrivateRoute(
@@ -98,7 +103,7 @@ class _AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<app.AuthProvider>();
+    final auth = context.watch<AuthService>();
 
     if (auth.loading) {
       return const Scaffold(
@@ -131,7 +136,7 @@ class _PrivateRoute extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<app.AuthProvider>();
+    final auth = context.watch<AuthService>();
 
     if (auth.loading) {
       return const Scaffold(
@@ -141,7 +146,7 @@ class _PrivateRoute extends StatelessWidget {
 
     if (!auth.isLoggedIn) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushReplacementNamed(context, '/login');
+        Navigator.pushReplacementNamed(context, Routes.login.path);
       });
       return const SizedBox.shrink();
     }
@@ -157,7 +162,7 @@ class _AdminRoute extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<app.AuthProvider>();
+    final auth = context.watch<AuthService>();
 
     if (auth.loading) {
       return const Scaffold(
@@ -167,7 +172,7 @@ class _AdminRoute extends StatelessWidget {
 
     if (!auth.isLoggedIn || !auth.isAdmin) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushReplacementNamed(context, '/home');
+        Navigator.pushReplacementNamed(context, Routes.home.path);
       });
       return const SizedBox.shrink();
     }
@@ -183,7 +188,7 @@ class _PublicRoute extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<app.AuthProvider>();
+    final auth = context.watch<AuthService>();
 
     if (auth.loading) {
       return const Scaffold(
@@ -193,7 +198,7 @@ class _PublicRoute extends StatelessWidget {
 
     if (auth.isLoggedIn) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushReplacementNamed(context, '/home');
+        Navigator.pushReplacementNamed(context, Routes.home.path);
       });
       return const SizedBox.shrink();
     }
