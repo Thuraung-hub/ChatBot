@@ -1,5 +1,9 @@
 # 🚀 Deployment Guide - Pinky Shop
 
+## Live Deployment Link
+
+- Firebase Hosting: https://chatbot-flutter-7b34f.web.app
+
 ## Environment Configuration
 
 Your app now supports **3 deployment environments** with automatic API URL switching:

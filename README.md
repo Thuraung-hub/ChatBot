@@ -4,6 +4,12 @@ A Flutter conversion of the original React/Firebase Pinky Shop e-commerce app.
 
 ---
 
+## Live Deployment
+
+- Web app: https://chatbot-flutter-7b34f.web.app
+
+---
+
 ## Project Structure
 
 ```

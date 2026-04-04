@@ -1,5 +1,7 @@
 # Week 11 Integrated Solution Plan
 
+Deployment Link: "https://chatbot-flutter-7b34f.web.app"
+
 Automation: "I use flutter test to automatically verify my cart logic and login flows."
 
 Visual Consistency: "I used widget testing to ensure the Premium Dark-Mode UI remains consistent across all 8 screens."
