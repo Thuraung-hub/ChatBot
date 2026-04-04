@@ -44,10 +44,18 @@ class AuthService extends ChangeNotifier {
 
     if (user != null) {
       await _loadProfile(user.uid);
-      await _persistAuthToken();
+      try {
+        await _persistAuthToken();
+      } catch (e) {
+        debugPrint('Auth token persistence warning: $e');
+      }
     } else {
       _profile = null;
-      await SecureStorageService.clearAuthToken();
+      try {
+        await SecureStorageService.clearAuthToken();
+      } catch (e) {
+        debugPrint('Auth token clear warning: $e');
+      }
     }
 
     _loading = false;

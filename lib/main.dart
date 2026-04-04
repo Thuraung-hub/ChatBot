@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_performance/firebase_performance.dart';
@@ -25,32 +27,114 @@ import 'screens/offline_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await dotenv.load(fileName: '.env');
+  try {
+    await dotenv.load(fileName: '.env');
 
-  // Set environment (change based on build configuration)
-  Config.setEnvironment(
-      Environment.production); // For Firebase Hosting web deployment
+    // Set environment (change based on build configuration)
+    Config.setEnvironment(
+        Environment.production); // For Firebase Hosting web deployment
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  await FirebasePerformance.instance
-      .setPerformanceCollectionEnabled(Config.enableFirebasePerformance);
-
-  final dsn = Config.sentryDsn;
-  if (dsn != null) {
-    await SentryFlutter.init(
-      (options) {
-        options.dsn = dsn;
-        options.tracesSampleRate = 0.2;
-      },
-      appRunner: () => runApp(const PinkyShopApp()),
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
     );
-    return;
-  }
 
-  runApp(const PinkyShopApp());
+    if (!kIsWeb) {
+      try {
+        await FirebasePerformance.instance
+            .setPerformanceCollectionEnabled(Config.enableFirebasePerformance);
+      } on MissingPluginException {
+        debugPrint(
+            'Firebase Performance plugin is unavailable on this platform.');
+      } catch (error) {
+        debugPrint('Firebase Performance setup warning: $error');
+      }
+    }
+
+    final dsn = Config.sentryDsn;
+    if (dsn != null) {
+      await SentryFlutter.init(
+        (options) {
+          options.dsn = dsn;
+          options.tracesSampleRate = 0.2;
+        },
+        appRunner: () => runApp(const PinkyShopApp()),
+      );
+      return;
+    }
+
+    runApp(const PinkyShopApp());
+  } catch (error) {
+    runApp(BootstrapErrorApp(errorMessage: error.toString()));
+  }
+}
+
+class BootstrapErrorApp extends StatelessWidget {
+  final String errorMessage;
+
+  const BootstrapErrorApp({super.key, required this.errorMessage});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: AppTheme.screenBg,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    color: Colors.white,
+                    size: 64,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'App failed to start',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 28,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Please refresh the page. If the issue continues, check environment configuration and Firebase setup.',
+                    style: TextStyle(color: Colors.white70, height: 1.5),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.15),
+                      ),
+                    ),
+                    child: SelectableText(
+                      errorMessage,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class PinkyShopApp extends StatefulWidget {
