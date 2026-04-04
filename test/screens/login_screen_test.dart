@@ -61,7 +61,7 @@ class _FakeAuthService extends ChangeNotifier implements AuthService {
 }
 
 void main() {
-  testWidgets('Login button is disabled if email field is empty',
+  testWidgets('shows email error when Login is tapped with empty email',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       ChangeNotifierProvider<AuthService>.value(
@@ -70,16 +70,15 @@ void main() {
       ),
     );
 
-    await tester.enterText(
-      find.byType(TextFormField).at(1),
-      'password123',
-    );
+    await tester.enterText(find.byType(TextFormField).at(1), 'password123');
     await tester.pumpAndSettle();
 
     final loginButtonFinder = find.widgetWithText(ElevatedButton, 'Login');
     expect(loginButtonFinder, findsOneWidget);
 
-    final loginButton = tester.widget<ElevatedButton>(loginButtonFinder);
-    expect(loginButton.onPressed, isNull);
+    await tester.tap(loginButtonFinder);
+    await tester.pump();
+
+    expect(find.text('Email or username is required.'), findsOneWidget);
   });
 }

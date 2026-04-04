@@ -10,6 +10,8 @@ class CartProvider extends ChangeNotifier {
   double get totalPrice =>
       _items.fold<double>(0, (sum, item) => sum + item.subtotal);
 
+  double get totalAmount => totalPrice;
+
   void addItem(CartItem item) {
     final index = _items.indexWhere((existing) => existing.productId == item.productId);
     if (index >= 0) {

@@ -38,7 +38,7 @@ class ApiService {
             url,
             headers: _getHeaders(),
           )
-          .timeout(Duration(seconds: AppConstants.apiTimeoutSeconds));
+          .timeout(const Duration(seconds: AppConstants.apiTimeoutSeconds));
 
       debugPrint('📦 Response: ${response.statusCode}');
       return _handleResponse(response);
@@ -64,7 +64,7 @@ class ApiService {
             headers: _getHeaders(),
             body: jsonEncode(body),
           )
-          .timeout(Duration(seconds: AppConstants.apiTimeoutSeconds));
+          .timeout(const Duration(seconds: AppConstants.apiTimeoutSeconds));
 
       debugPrint('📦 Response: ${response.statusCode}');
       return _handleResponse(response);
@@ -90,7 +90,7 @@ class ApiService {
             headers: _getHeaders(),
             body: jsonEncode(body),
           )
-          .timeout(Duration(seconds: AppConstants.apiTimeoutSeconds));
+          .timeout(const Duration(seconds: AppConstants.apiTimeoutSeconds));
 
       debugPrint('📦 Response: ${response.statusCode}');
       return _handleResponse(response);
@@ -111,7 +111,7 @@ class ApiService {
             url,
             headers: _getHeaders(),
           )
-          .timeout(Duration(seconds: AppConstants.apiTimeoutSeconds));
+          .timeout(const Duration(seconds: AppConstants.apiTimeoutSeconds));
 
       debugPrint('📦 Response: ${response.statusCode}');
       return _handleResponse(response);

@@ -24,7 +24,7 @@ void main() {
         productImageUrl: '',
       ));
 
-      expect(provider.totalPrice, 80.0);
+      expect(provider.totalAmount, 80.0);
     });
 
     test('removing an item updates total price correctly', () {
@@ -49,7 +49,7 @@ void main() {
 
       provider.removeItem('p1');
 
-      expect(provider.totalPrice, 60.0);
+      expect(provider.totalAmount, 60.0);
       expect(provider.items.length, 1);
     });
 
@@ -67,7 +67,7 @@ void main() {
 
       provider.clearItems();
 
-      expect(provider.totalPrice, 0.0);
+      expect(provider.totalAmount, 0.0);
       expect(provider.items, isEmpty);
     });
   });

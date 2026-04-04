@@ -31,13 +31,26 @@ class AppTheme {
           scrolledUnderElevation: 0,
           titleTextStyle: TextStyle(
             color: dark,
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w800,
             fontSize: 20,
+          ),
+        ),
+        cardTheme: CardThemeData(
+          color: Colors.white,
+          surfaceTintColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: const BorderSide(color: borderGray),
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: bgGray,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          prefixIconColor: textGray,
+          suffixIconColor: textGray,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide.none,
@@ -54,12 +67,19 @@ class AppTheme {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            padding: const EdgeInsets.symmetric(vertical: 16),
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
+            minimumSize: const Size.fromHeight(52),
             textStyle: const TextStyle(
               fontWeight: FontWeight.w800,
               fontSize: 16,
             ),
           ),
+        ),
+        snackBarTheme: SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          contentTextStyle: const TextStyle(fontWeight: FontWeight.w600),
         ),
       );
 }

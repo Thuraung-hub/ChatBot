@@ -20,6 +20,7 @@ import 'screens/profile_screen.dart';
 import 'screens/product_detail_screen.dart';
 import 'screens/chat_screen.dart';
 import 'screens/admin_dashboard.dart';
+import 'screens/offline_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -62,39 +63,36 @@ class PinkyShopApp extends StatefulWidget {
 class _PinkyShopAppState extends State<PinkyShopApp> {
   final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
-  bool _offlineShown = false;
+  bool _isOffline = false;
 
   @override
   void initState() {
     super.initState();
+    _refreshConnectivity();
     _connectivitySub =
         Connectivity().onConnectivityChanged.listen(_onConnectivityChanged);
   }
 
-  void _onConnectivityChanged(List<ConnectivityResult> results) {
-    final messenger = _scaffoldMessengerKey.currentState;
-    if (messenger == null) return;
+  Future<void> _refreshConnectivity() async {
+    final results = await Connectivity().checkConnectivity();
+    _onConnectivityChanged(results);
+  }
 
+  void _onConnectivityChanged(List<ConnectivityResult> results) {
+    final wasOffline = _isOffline;
     final isOffline =
         results.isEmpty || results.contains(ConnectivityResult.none);
 
-    if (isOffline && !_offlineShown) {
-      _offlineShown = true;
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text('No internet connection'),
-          backgroundColor: AppTheme.red,
-          duration: const Duration(days: 1),
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
-      return;
+    if (wasOffline != isOffline && mounted) {
+      setState(() => _isOffline = isOffline);
+    } else {
+      _isOffline = isOffline;
     }
 
-    if (!isOffline && _offlineShown) {
-      _offlineShown = false;
+    final messenger = _scaffoldMessengerKey.currentState;
+    if (messenger == null) return;
+
+    if (!isOffline && wasOffline) {
       messenger
         ..hideCurrentSnackBar()
         ..showSnackBar(
@@ -127,6 +125,22 @@ class _PinkyShopAppState extends State<PinkyShopApp> {
         theme: AppTheme.theme,
         initialRoute: AppConstants.rootRoute,
         onGenerateRoute: _generateRoute,
+        builder: (context, child) {
+          if (child == null) return const SizedBox.shrink();
+          if (!_isOffline) return child;
+
+          return WillPopScope(
+            onWillPop: () async => false,
+            child: Stack(
+              children: [
+                child,
+                Positioned.fill(
+                  child: OfflineScreen(onRetry: _refreshConnectivity),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

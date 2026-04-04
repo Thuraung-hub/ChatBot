@@ -299,21 +299,55 @@ class _OrderSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: const Border(top: BorderSide(color: AppTheme.borderGray)),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppTheme.borderGray),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 20,
-              offset: const Offset(0, -4))
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          )
         ],
       ),
       child: SafeArea(
         top: false,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryLight,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(Icons.local_shipping_outlined,
+                      color: AppTheme.primary, size: 18),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Order summary',
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: AppTheme.dark)),
+                      SizedBox(height: 2),
+                      Text('Free shipping and fast checkout are included.',
+                          style: TextStyle(color: AppTheme.textGray, fontSize: 13)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
             _Row('Subtotal', '\$${total.toStringAsFixed(2)}'),
             const SizedBox(height: 8),
             const _Row('Shipping', 'Free', valueColor: AppTheme.green),
@@ -344,20 +378,23 @@ class _OrderSummary extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: () => _checkoutNow(context),
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.dark,
-                    padding: const EdgeInsets.symmetric(vertical: 18)),
+                  backgroundColor: AppTheme.dark,
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                ),
                 child: const Text('Checkout Now',
                     style:
                         TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
               ),
             ),
             const SizedBox(height: 12),
-            const Text('SECURE SSL ENCRYPTION',
-                style: TextStyle(
-                    color: AppTheme.textGray,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.5)),
+            const Center(
+              child: Text('SECURE SSL ENCRYPTION',
+                  style: TextStyle(
+                      color: AppTheme.textGray,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.5)),
+            ),
           ],
         ),
       ),
@@ -400,13 +437,21 @@ class _EmptyCart extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(32),
+              padding: const EdgeInsets.all(28),
               decoration: BoxDecoration(
-                color: AppTheme.bgGray,
-                borderRadius: BorderRadius.circular(24),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: AppTheme.borderGray),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 24,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
               child: const Icon(Icons.shopping_bag_outlined,
-                  size: 64, color: AppTheme.textGray),
+                  size: 64, color: AppTheme.primary),
             ),
             const SizedBox(height: 24),
             const Text('Your cart is empty',
@@ -416,14 +461,15 @@ class _EmptyCart extends StatelessWidget {
                     color: AppTheme.dark)),
             const SizedBox(height: 8),
             const Text(
-                "Looks like you haven't added anything to your cart yet.",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppTheme.textGray)),
+              "Looks like you haven't added anything yet. Browse the catalog or ask the assistant for help choosing a product.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppTheme.textGray, height: 1.5),
+            ),
             const SizedBox(height: 32),
             ElevatedButton.icon(
               onPressed: () =>
                   Navigator.pushReplacementNamed(context, Routes.home.path),
-              icon: const Icon(Icons.arrow_forward_rounded),
+              icon: const Icon(Icons.storefront_outlined),
               label: const Text('Start Shopping'),
             ),
           ],

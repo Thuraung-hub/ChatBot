@@ -1,24 +1,10 @@
 import 'package:flutter/material.dart';
 import '../app_theme.dart';
 
-class OfflineScreen extends StatefulWidget {
-  const OfflineScreen({super.key});
+class OfflineScreen extends StatelessWidget {
+  final VoidCallback? onRetry;
 
-  @override
-  State<OfflineScreen> createState() => _OfflineScreenState();
-}
-
-class _OfflineScreenState extends State<OfflineScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // Auto-close after 5 seconds if connection is restored
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted) {
-        Navigator.pop(context);
-      }
-    });
-  }
+  const OfflineScreen({super.key, this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +74,7 @@ class _OfflineScreenState extends State<OfflineScreen> {
                   child: SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: onRetry,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primary,
                         foregroundColor: Colors.white,

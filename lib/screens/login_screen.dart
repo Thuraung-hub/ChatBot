@@ -215,9 +215,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                          onPressed: (auth.processing || !_canSubmit)
-                            ? null
-                            : _handleEmailLogin,
+                            onPressed: auth.processing ||
+                                    _passwordController.text.isEmpty
+                                ? null
+                                : _handleEmailLogin,
                             child: auth.processing
                                 ? const SizedBox(
                                     width: 22,

@@ -47,8 +47,9 @@ class AppValidators {
   static String? description(String? value) {
     final trimmed = value?.trim() ?? '';
     if (trimmed.isEmpty) return 'Description is required.';
-    if (trimmed.length < 10)
+    if (trimmed.length < 10) {
       return 'Description must be at least 10 characters.';
+    }
     return null;
   }
 

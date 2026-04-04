@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../config/app_constants.dart';
 import '../app_theme.dart';
 import '../services/auth_service.dart';
+import '../widgets/app_action_button.dart';
 import 'buy_item_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -108,56 +109,9 @@ class ProfileScreen extends StatelessWidget {
                           ],
                         ),
                       ),
-                      TextButton.icon(
-                        onPressed: () => _handleLogout(context, auth),
-                        icon: const Icon(Icons.logout_rounded,
-                            color: AppTheme.red, size: 18),
-                        label: const Text('Logout',
-                            style: TextStyle(
-                                color: AppTheme.red,
-                                fontWeight: FontWeight.w700)),
-                        style: TextButton.styleFrom(
-                          backgroundColor: AppTheme.redLight,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 32),
-
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: auth.processing
-                          ? null
-                          : () => _confirmDeleteAccount(context, auth),
-                      icon: const Icon(Icons.delete_forever_rounded),
-                      label: const Text('Delete Account'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppTheme.red,
-                        side: const BorderSide(color: AppTheme.red),
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                      ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: auth.processing
-                          ? null
-                          : () => _confirmDeleteMyData(context, auth),
-                      icon: const Icon(Icons.delete_forever_rounded),
-                      label: const Text('Delete My Data'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppTheme.red,
-                        side: const BorderSide(color: AppTheme.red),
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
+                    const SizedBox(height: 32),
 
                   // Account info section
                   Text('ACCOUNT INFORMATION',
@@ -180,17 +134,42 @@ class ProfileScreen extends StatelessWidget {
                     value: isAdmin ? 'Admin' : 'Customer',
                   ),
                   const SizedBox(height: 18),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _openBuyItemScreen(context),
-                      icon: const Icon(Icons.inventory_2_outlined),
-                      label: const Text('Buy Item'),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                      ),
-                    ),
+                  AppActionButton(
+                    label: 'Buy Item',
+                    icon: Icons.inventory_2_outlined,
+                    onPressed: () => _openBuyItemScreen(context),
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
                   ),
+                  const SizedBox(height: 12),
+                  AppActionButton(
+                    label: 'Logout',
+                    icon: Icons.logout_rounded,
+                    onPressed: () => _handleLogout(context, auth),
+                    backgroundColor: AppTheme.redLight,
+                    foregroundColor: AppTheme.red,
+                  ),
+                  const SizedBox(height: 12),
+                  AppActionButton(
+                    label: 'Delete Account',
+                    icon: Icons.delete_forever_rounded,
+                    onPressed: auth.processing
+                        ? null
+                        : () => _confirmDeleteAccount(context, auth),
+                    backgroundColor: AppTheme.red,
+                    foregroundColor: Colors.white,
+                  ),
+                  const SizedBox(height: 12),
+                  AppActionButton(
+                    label: 'Delete My Data',
+                    icon: Icons.delete_forever_rounded,
+                    onPressed: auth.processing
+                        ? null
+                        : () => _confirmDeleteMyData(context, auth),
+                    backgroundColor: AppTheme.red,
+                    foregroundColor: Colors.white,
+                  ),
+                  const SizedBox(height: 24),
                 ],
               ),
             ),
