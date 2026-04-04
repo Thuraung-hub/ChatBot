@@ -10,6 +10,14 @@ enum Environment {
 class Config {
   static Environment _environment = Environment.development;
 
+  static String _requireEnv(String key) {
+    final value = dotenv.env[key];
+    if (value == null || value.isEmpty) {
+      throw StateError('Missing required environment variable: $key');
+    }
+    return value;
+  }
+
   /// Set the environment
   static void setEnvironment(Environment env) {
     _environment = env;
@@ -45,11 +53,11 @@ class Config {
 
     switch (_environment) {
       case Environment.development:
-        return dotenv.env['API_KEY_DEVELOPMENT'] ?? 'dev-api-key-12345';
+        return _requireEnv('API_KEY_DEVELOPMENT');
       case Environment.staging:
-        return dotenv.env['API_KEY_STAGING'] ?? 'staging-api-key-67890';
+        return _requireEnv('API_KEY_STAGING');
       case Environment.production:
-        return dotenv.env['API_KEY_PRODUCTION'] ?? 'prod-api-key-secret';
+        return _requireEnv('API_KEY_PRODUCTION');
     }
   }
 
@@ -58,6 +66,9 @@ class Config {
 
   static String get deleteAccountEndpoint =>
       dotenv.env['DELETE_ACCOUNT_ENDPOINT'] ?? 'users/me';
+
+  /// Gemini API key used by AI service calls.
+  static String get geminiApiKey => _requireEnv('GEMINI_API_KEY');
 
   /// Firebase Hosting URL (for reference)
   static const String firebaseHostingUrl =

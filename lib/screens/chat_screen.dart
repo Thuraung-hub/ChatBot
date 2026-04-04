@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../config/app_constants.dart';
 import '../config/app_validators.dart';
 import '../app_theme.dart';
+import '../providers/chat_provider.dart';
 import '../services/auth_service.dart';
+import '../services/gemini_client.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -17,11 +19,14 @@ class _ChatScreenState extends State<ChatScreen> {
   final _formKey = GlobalKey<FormState>();
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
+  late final ChatProvider _chatProvider;
   bool _sending = false;
+  int _lastMessageCount = 0;
 
   @override
   void initState() {
     super.initState();
+    _chatProvider = ChatProvider(geminiClient: HttpGeminiClient());
     _sendWelcomeMessageIfNeeded();
   }
 
@@ -29,7 +34,27 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
+    _chatProvider.dispose();
     super.dispose();
+  }
+
+  void _scrollToBottom({bool animated = true}) {
+    if (!_scrollController.hasClients) return;
+
+    final target =
+        _scrollController.position.maxScrollExtent + AppConstants.chatScrollOffset;
+
+    if (animated) {
+      _scrollController.animateTo(
+        target,
+        duration: const Duration(
+            milliseconds: AppConstants.chatScrollAnimationMilliseconds),
+        curve: Curves.easeOut,
+      );
+      return;
+    }
+
+    _scrollController.jumpTo(target);
   }
 
   Future<void> _sendWelcomeMessageIfNeeded() async {
@@ -47,145 +72,9 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  bool _containsWord(String text, String word) {
-    final regex = RegExp('\\b${RegExp.escape(word)}\\b', caseSensitive: false);
-    return regex.hasMatch(text);
-  }
-
-  bool _isDeliveryQuery(String query) {
-    return _containsWord(query, 'delivery') ||
-        _containsWord(query, 'date') ||
-        query.contains('how long') ||
-        query.contains('when') && query.contains('arrive');
-  }
-
-  String _formatDate(DateTime date) {
-    final month = date.month.toString().padLeft(2, '0');
-    final day = date.day.toString().padLeft(2, '0');
-    return '$day/$month/${date.year}';
-  }
-
   /// BOT REPLY FUNCTION
-  Future<void> _botReply(String message, String uid, String userName) async {
-    final query = message.toLowerCase();
-
-    if (_isDeliveryQuery(query)) {
-      final now = DateTime.now();
-      final startDate = now.add(const Duration(days: 2));
-      final endDate = now.add(
-        const Duration(days: AppConstants.deliveryLeadDays),
-      );
-
-      final reply =
-          'Hello $userName! Your order is currently being processed. You can expect delivery between ${_formatDate(startDate)} and ${_formatDate(endDate)}. We\'ll send you a notification as soon as it out for delivery.';
-
-      await FirebaseFirestore.instance.collection('chat').add({
-        'userId': uid,
-        'sender': 'bot',
-        'userName': 'Shop Bot',
-        'text': reply,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      return;
-    }
-
-    if (_containsWord(query, 'hi') || _containsWord(query, 'hello')) {
-      await FirebaseFirestore.instance.collection('chat').add({
-        'userId': uid,
-        'sender': 'bot',
-        'userName': 'Shop Bot',
-        'text':
-            'Hey! Great style starts with the right tech. What are you looking for today? 🛍️',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      return;
-    }
-
-    if (_containsWord(query, 'help') || _containsWord(query, 'assist')) {
-      await FirebaseFirestore.instance.collection('chat').add({
-        'userId': uid,
-        'sender': 'bot',
-        'userName': 'Shop Bot',
-        'text':
-            "I'm here to help! Whether you want the latest product information or some stylish apparel, just ask. What's on your mind? 😊",
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      return;
-    }
-
-    if (_containsWord(query, 'thank') ||
-        _containsWord(query, 'thanks') ||
-        _containsWord(query, 'thank you')) {
-      await FirebaseFirestore.instance.collection('chat').add({
-        'userId': uid,
-        'sender': 'bot',
-        'userName': 'Shop Bot',
-        'text':
-            "You're welcome! If you have any more questions or need recommendations, just let me know. Happy shopping! 🛍️",
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      return;
-    }
-
-    final snapshot =
-        await FirebaseFirestore.instance.collection('products').get();
-
-    String reply = "Sorry, I couldn't find any product.";
-    final isReviewQuery = _containsWord(query, 'review') ||
-        _containsWord(query, 'reviews') ||
-        _containsWord(query, 'rating');
-
-    final docs = snapshot.docs;
-
-    // If user asks by product name, return only that single product.
-    final matchedProduct = docs.where((doc) {
-      final data = doc.data();
-      final name = (data['name'] ?? '').toString().toLowerCase().trim();
-      return name.isNotEmpty && query.contains(name);
-    }).toList();
-
-    if (matchedProduct.isNotEmpty) {
-      final data = matchedProduct.first.data();
-      if (isReviewQuery) {
-        final review = (data['review'] ?? '').toString().trim();
-        if (review.isNotEmpty) {
-          reply = "Review for ${data['name']}:\n\n$review";
-        } else {
-          reply = "No review available yet for ${data['name']}.";
-        }
-      } else {
-        reply =
-            "${data['name']}\n\n${data['description']}\nPrice: \$${data['price']}";
-      }
-    } else {
-      // If user asks by category, list all items under that category one-by-one.
-      final matchedCategory = docs.map((doc) {
-        final data = doc.data();
-        return (data['category'] ?? '').toString().trim();
-      }).firstWhere(
-        (cat) => cat.isNotEmpty && query.contains(cat.toLowerCase()),
-        orElse: () => '',
-      );
-
-      if (matchedCategory.isNotEmpty) {
-        final categoryProducts = docs.where((doc) {
-          final data = doc.data();
-          return (data['category'] ?? '').toString().toLowerCase() ==
-              matchedCategory.toLowerCase();
-        }).toList();
-
-        final buffer = StringBuffer('Products in $matchedCategory:\n\n');
-        for (final productDoc in categoryProducts) {
-          final p = productDoc.data();
-          buffer.writeln('${p['name']}');
-          buffer.writeln('${p['description']}');
-          buffer.writeln('Price: \$${p['price']}');
-          buffer.writeln('');
-        }
-
-        reply = buffer.toString().trimRight();
-      }
-    }
+  Future<void> _botReply(String message, String uid) async {
+    final reply = await _chatProvider.ask(message);
 
     await FirebaseFirestore.instance.collection('chat').add({
       'userId': uid,
@@ -218,25 +107,9 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     /// BOT REPLY
-    await _botReply(text, auth.user!.uid, auth.profile!.name);
+    await _botReply(text, auth.user!.uid);
 
     setState(() => _sending = false);
-
-    Future.delayed(
-      const Duration(
-          milliseconds: AppConstants.chatAutoScrollDelayMilliseconds),
-      () {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent +
-                AppConstants.chatScrollOffset,
-            duration: const Duration(
-                milliseconds: AppConstants.chatScrollAnimationMilliseconds),
-            curve: Curves.easeOut,
-          );
-        }
-      },
-    );
   }
 
   @override
@@ -245,7 +118,11 @@ class _ChatScreenState extends State<ChatScreen> {
     final myUid = auth.user?.uid ?? '';
 
     return Scaffold(
+      backgroundColor: const Color(0xFF0B1020),
       appBar: AppBar(
+        backgroundColor: const Color(0xFF10182A),
+        foregroundColor: Colors.white,
+        elevation: 0,
         title: const Text('Shop Assistant'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
@@ -285,9 +162,16 @@ class _ChatScreenState extends State<ChatScreen> {
                   return const Center(
                     child: Text(
                       'Ask about products or categories!',
-                      style: TextStyle(color: AppTheme.textGray),
+                      style: TextStyle(color: Color(0xFF9AA4B2)),
                     ),
                   );
+                }
+
+                if (docs.length != _lastMessageCount) {
+                  _lastMessageCount = docs.length;
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _scrollToBottom(animated: true);
+                  });
                 }
 
                 return ListView.builder(
@@ -312,8 +196,8 @@ class _ChatScreenState extends State<ChatScreen> {
           Container(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: AppTheme.borderGray)),
+              color: Color(0xFF10182A),
+              border: Border(top: BorderSide(color: Color(0xFF1D2A44))),
             ),
             child: SafeArea(
               top: false,
@@ -326,11 +210,28 @@ class _ChatScreenState extends State<ChatScreen> {
                       child: TextFormField(
                         controller: _controller,
                         validator: AppValidators.comment,
+                        style: const TextStyle(color: Colors.white),
                         decoration: const InputDecoration(
                           hintText: 'Ask about products...',
+                          hintStyle: TextStyle(color: Color(0xFF9AA4B2)),
+                          filled: true,
+                          fillColor: Color(0xFF16233A),
                           prefixIcon: Icon(
                             Icons.chat_bubble_outline_rounded,
-                            color: AppTheme.textGray,
+                            color: Color(0xFF9AA4B2),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(14)),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(14)),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(14)),
+                            borderSide: BorderSide(
+                                color: AppTheme.primaryLight, width: 1.2),
                           ),
                         ),
                         onFieldSubmitted: (_) => _sendMessage(),
@@ -401,18 +302,21 @@ class _MessageBubble extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: isMe ? AppTheme.primary : AppTheme.bgGray,
+                color: isMe ? AppTheme.primary : const Color(0xFF18243A),
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(18),
                   topRight: const Radius.circular(18),
                   bottomLeft: Radius.circular(isMe ? 18 : 4),
                   bottomRight: Radius.circular(isMe ? 4 : 18),
                 ),
+                border: isMe
+                    ? null
+                    : Border.all(color: const Color(0xFF243550), width: 1),
               ),
               child: Text(
                 text,
-                style: TextStyle(
-                  color: isMe ? Colors.white : AppTheme.dark,
+                style: const TextStyle(
+                  color: Colors.white,
                   fontSize: 14,
                   height: 1.4,
                 ),
