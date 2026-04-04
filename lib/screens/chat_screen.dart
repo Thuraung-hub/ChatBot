@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../config/app_constants.dart';
-import '../config/app_validators.dart';
 import '../app_theme.dart';
 import '../providers/chat_provider.dart';
 import '../services/auth_service.dart';
 import '../services/gemini_client.dart';
 import '../services/monitoring_service.dart';
+import '../widgets/chat_input_bar.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -63,26 +63,34 @@ class _ChatScreenState extends State<ChatScreen> {
     final uid = auth.user?.uid;
     if (uid == null) return;
 
-    final existingWelcome = await FirebaseFirestore.instance
-        .collection('chat')
-        .where('userId', isEqualTo: uid)
-        .where('type', isEqualTo: 'welcome')
-        .limit(1)
-        .get();
+    try {
+      final existingWelcome = await FirebaseFirestore.instance
+          .collection('chat')
+          .where('userId', isEqualTo: uid)
+          .where('type', isEqualTo: 'welcome')
+          .limit(1)
+          .get();
 
-    if (existingWelcome.docs.isNotEmpty) {
-      return;
+      if (existingWelcome.docs.isNotEmpty) {
+        return;
+      }
+
+      await FirebaseFirestore.instance.collection('chat').add({
+        'userId': uid,
+        'sender': 'bot',
+        'userName': 'Shop Bot',
+        'type': 'welcome',
+        'text':
+            "Hey there! 👋 I'm your personal style & tech assistant and you can ask about with the products name,category and delivery information  .",
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (error, stackTrace) {
+      await MonitoringService.captureException(
+        error,
+        stackTrace: stackTrace,
+        hint: 'chat_welcome_message',
+      );
     }
-
-    await FirebaseFirestore.instance.collection('chat').add({
-      'userId': uid,
-      'sender': 'bot',
-      'userName': 'Shop Bot',
-      'type': 'welcome',
-      'text':
-          "Hey there! 👋 I'm your personal style & tech assistant and you can ask about with the products name,category and delivery information  .",
-      'createdAt': FieldValue.serverTimestamp(),
-    });
   }
 
   bool _containsWord(String text, String word) {
@@ -125,10 +133,90 @@ class _ChatScreenState extends State<ChatScreen> {
     return null;
   }
 
+  bool _isReviewQuery(String query) {
+    return _containsWord(query, 'review') ||
+        _containsWord(query, 'reviews') ||
+        _containsWord(query, 'rating') ||
+        _containsWord(query, 'spec') ||
+        _containsWord(query, 'specification') ||
+        _containsWord(query, 'details');
+  }
+
+  Future<String?> _buildCatalogReply(String message) async {
+    final query = message.toLowerCase().trim();
+    if (query.isEmpty) return null;
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('products')
+        .limit(120)
+        .get();
+
+    final docs = snapshot.docs;
+    if (docs.isEmpty) return null;
+
+    final isReview = _isReviewQuery(query);
+
+    final matchedByName = docs.where((doc) {
+      final data = doc.data();
+      final name = (data['name'] ?? '').toString().toLowerCase().trim();
+      return name.isNotEmpty && query.contains(name);
+    }).toList();
+
+    if (matchedByName.isNotEmpty) {
+      final product = matchedByName.first.data();
+      final name = (product['name'] ?? 'Product').toString();
+      final description = (product['description'] ?? '').toString().trim();
+      final price = (product['price'] ?? '').toString().trim();
+      final review = (product['review'] ?? '').toString().trim();
+
+      if (isReview) {
+        if (review.isNotEmpty) {
+          return 'Review for $name:\n\n$review';
+        }
+        return 'No review available yet for $name.';
+      }
+
+      return '$name\n\n$description\nPrice: \$$price';
+    }
+
+    String? matchedCategory;
+    for (final doc in docs) {
+      final data = doc.data();
+      final category = (data['category'] ?? '').toString().trim();
+      if (category.isNotEmpty && query.contains(category.toLowerCase())) {
+        matchedCategory = category;
+        break;
+      }
+    }
+
+    if (matchedCategory != null) {
+      final categoryProducts = docs.where((doc) {
+        final data = doc.data();
+        final category = (data['category'] ?? '').toString();
+        return category.toLowerCase() == matchedCategory!.toLowerCase();
+      }).toList();
+
+      if (categoryProducts.isEmpty) return null;
+
+      final buffer = StringBuffer('Products in $matchedCategory:\n\n');
+      for (final productDoc in categoryProducts) {
+        final p = productDoc.data();
+        buffer.writeln((p['name'] ?? '').toString());
+        buffer.writeln((p['description'] ?? '').toString());
+        buffer.writeln('Price: \$${p['price']}');
+        buffer.writeln('');
+      }
+      return buffer.toString().trimRight();
+    }
+
+    return null;
+  }
+
   /// BOT REPLY FUNCTION
   Future<void> _botReply(String message, String uid, String userName) async {
     final quickReply = _buildQuickLocalReply(message, userName);
-    final reply = quickReply ?? await _chatProvider.ask(message);
+    final catalogReply = quickReply == null ? await _buildCatalogReply(message) : null;
+    final reply = quickReply ?? catalogReply ?? await _chatProvider.ask(message);
 
     await FirebaseFirestore.instance.collection('chat').add({
       'userId': uid,
@@ -144,12 +232,24 @@ class _ChatScreenState extends State<ChatScreen> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final auth = context.read<AuthService>();
-    if (auth.user == null || auth.profile == null) return;
+    if (auth.user == null) return;
 
     final trace = await MonitoringService.startTrace('chat_send_message');
     setState(() => _sending = true);
 
     final text = _controller.text.trim();
+    if (text.isEmpty) {
+      setState(() => _sending = false);
+      await MonitoringService.stopTrace(trace);
+      return;
+    }
+
+    final userName = auth.profile?.name.trim().isNotEmpty == true
+        ? auth.profile!.name
+        : ((auth.user?.displayName?.trim().isNotEmpty ?? false)
+            ? auth.user!.displayName!
+            : 'Customer');
+
     _controller.clear();
 
     try {
@@ -157,13 +257,13 @@ class _ChatScreenState extends State<ChatScreen> {
       await FirebaseFirestore.instance.collection('chat').add({
         'userId': auth.user!.uid,
         'sender': 'user',
-        'userName': auth.profile!.name,
+        'userName': userName,
         'text': text,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
       /// BOT REPLY
-      await _botReply(text, auth.user!.uid, auth.profile!.name);
+      await _botReply(text, auth.user!.uid, userName);
     } catch (error, stackTrace) {
       await MonitoringService.captureException(
         error,
@@ -271,70 +371,11 @@ class _ChatScreenState extends State<ChatScreen> {
               },
             ),
           ),
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            decoration: const BoxDecoration(
-              color: Color(0xFF10182A),
-              border: Border(top: BorderSide(color: Color(0xFF1D2A44))),
-            ),
-            child: SafeArea(
-              top: false,
-              child: Form(
-                key: _formKey,
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _controller,
-                        validator: AppValidators.comment,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: const InputDecoration(
-                          hintText: 'Ask about products...',
-                          hintStyle: TextStyle(color: Color(0xFF9AA4B2)),
-                          filled: true,
-                          fillColor: Color(0xFF16233A),
-                          prefixIcon: Icon(
-                            Icons.chat_bubble_outline_rounded,
-                            color: Color(0xFF9AA4B2),
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(14)),
-                            borderSide: BorderSide.none,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(14)),
-                            borderSide: BorderSide.none,
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(14)),
-                            borderSide: BorderSide(
-                                color: AppTheme.primaryLight, width: 1.2),
-                          ),
-                        ),
-                        onFieldSubmitted: (_) => _sendMessage(),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    ElevatedButton(
-                      onPressed: _sending ? null : _sendMessage,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.all(16),
-                        minimumSize: const Size(0, 0),
-                      ),
-                      child: _sending
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                  color: Colors.white, strokeWidth: 2),
-                            )
-                          : const Icon(Icons.send_rounded, size: 20),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          ChatInputBar(
+            formKey: _formKey,
+            controller: _controller,
+            sending: _sending,
+            onSend: _sendMessage,
           ),
         ],
       ),

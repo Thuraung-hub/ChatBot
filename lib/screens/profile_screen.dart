@@ -141,6 +141,22 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: auth.processing
+                          ? null
+                          : () => _confirmDeleteMyData(context, auth),
+                      icon: const Icon(Icons.data_saver_off_rounded),
+                      label: const Text('Delete My Data'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.dark,
+                        side: const BorderSide(color: AppTheme.borderGray),
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 24),
 
                   // Account info section
@@ -214,6 +230,47 @@ class ProfileScreen extends StatelessWidget {
 
     try {
       await auth.deleteAccount();
+      if (context.mounted) {
+        Navigator.pushReplacementNamed(context, Routes.login.path);
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    }
+  }
+
+  Future<void> _confirmDeleteMyData(
+      BuildContext context, AuthService auth) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Delete My Data'),
+        content: const Text(
+          'This will remove your account data and authentication record from Firebase. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text(
+              'Delete Data',
+              style: TextStyle(color: AppTheme.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete != true || !context.mounted) return;
+
+    try {
+      await auth.deleteMyData();
       if (context.mounted) {
         Navigator.pushReplacementNamed(context, Routes.login.path);
       }

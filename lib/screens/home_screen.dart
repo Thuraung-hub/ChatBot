@@ -6,6 +6,7 @@ import '../app_theme.dart';
 import '../models/product.dart';
 import '../services/auth_service.dart';
 import '../services/monitoring_service.dart';
+import '../widgets/category_section_header.dart';
 import '../widgets/product_card.dart';
 
 const _sampleProducts = [
@@ -243,45 +244,9 @@ class HomeScreen extends StatelessWidget {
                 final categoryProducts = entry.value;
                 return <Widget>[
                   SliverToBoxAdapter(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 32),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Row(
-                            children: [
-                              Text(category,
-                                  style: const TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w900,
-                                      color: AppTheme.textGray)),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                  child: Container(
-                                      height: 1, color: AppTheme.borderGray)),
-                              const SizedBox(width: 12),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primaryLight,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  '${categoryProducts.length} Items',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppTheme.primary,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
+                    child: CategorySectionHeader(
+                      category: category,
+                      itemCount: categoryProducts.length,
                     ),
                   ),
                   SliverPadding(

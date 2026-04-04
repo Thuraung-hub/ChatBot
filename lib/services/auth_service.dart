@@ -370,6 +370,42 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  Future<void> deleteMyData() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('No authenticated user found.');
+    }
+
+    _setProcessing(true);
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _clearUserChat(user.uid);
+      await _db.collection(AppConstants.usersCollection).doc(user.uid).delete();
+
+      try {
+        await user.delete();
+      } catch (firebaseError) {
+        debugPrint('Firebase Auth user delete failed: $firebaseError');
+      }
+
+      await SecureStorageService.clearAuthToken();
+      await GoogleSignIn().signOut();
+      await _auth.signOut();
+
+      _user = null;
+      _profile = null;
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = _friendlyError(e);
+      notifyListeners();
+      rethrow;
+    } finally {
+      _setProcessing(false);
+    }
+  }
+
   void _setProcessing(bool value) {
     if (_processing == value) return;
     _processing = value;

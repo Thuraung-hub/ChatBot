@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_profile.dart';
+import '../services/secure_storage_service.dart';
 
 class AuthProvider extends ChangeNotifier {
 
@@ -32,8 +33,13 @@ class AuthProvider extends ChangeNotifier {
 
     if (user != null) {
       await _loadProfile(user.uid);
+      final token = await _auth.currentUser?.getIdToken();
+      if (token != null && token.isNotEmpty) {
+        await SecureStorageService.saveAuthToken(token);
+      }
     } else {
       _profile = null;
+      await SecureStorageService.clearAuthToken();
     }
 
     _loading = false;
@@ -62,10 +68,15 @@ class AuthProvider extends ChangeNotifier {
   // =============================
 
   Future<void> signInWithEmail(String email, String password) async {
-    await _auth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+    try {
+      await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+    } catch (e) {
+      debugPrint('Error in signInWithEmail: $e');
+      rethrow;
+    }
   }
 
   // =============================
@@ -77,25 +88,28 @@ class AuthProvider extends ChangeNotifier {
       String password,
       String name
   ) async {
+    try {
+      final cred = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-    final cred = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+      final uid = cred.user!.uid;
 
-    final uid = cred.user!.uid;
+      final profileData = {
+        'name': name,
+        'email': email,
+        'role': 'customer',
+      };
 
-    final profileData = {
-      'name': name,
-      'email': email,
-      'role': 'customer',
-    };
+      await _db.collection('users').doc(uid).set(profileData);
 
-    await _db.collection('users').doc(uid).set(profileData);
-
-    _profile = UserProfile.fromMap(uid, profileData);
-
-    notifyListeners();
+      _profile = UserProfile.fromMap(uid, profileData);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error in signUpWithEmail: $e');
+      rethrow;
+    }
   }
 
   // =============================
@@ -192,7 +206,13 @@ class AuthProvider extends ChangeNotifier {
       }
     }
 
-    await _auth.signOut();
+    try {
+      await _auth.signOut();
+      await SecureStorageService.clearAuthToken();
+    } catch (e) {
+      debugPrint('Error in signOut: $e');
+      rethrow;
+    }
 
     try {
       await GoogleSignIn().signOut();

@@ -34,11 +34,11 @@ class BuyItemScreen extends StatelessWidget {
                 style: TextStyle(color: AppTheme.textGray),
               ),
             )
-          : StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
+          : FutureBuilder<QuerySnapshot>(
+              future: FirebaseFirestore.instance
                   .collection('users/$uid/orders')
                   .orderBy('orderedAt', descending: true)
-                  .snapshots(),
+                  .get(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(
