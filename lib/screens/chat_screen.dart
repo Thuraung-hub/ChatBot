@@ -81,7 +81,7 @@ class _ChatScreenState extends State<ChatScreen> {
         'userName': 'Shop Bot',
         'type': 'welcome',
         'text':
-            "Hey there! 👋 I'm your personal style & tech assistant and you can ask about with the products name,category and delivery information  .",
+            "Hey there! 👋 I'm your personal style & tech assistant and you can ask about with the products Description,review,category and delivery information  .",
         'createdAt': FieldValue.serverTimestamp(),
       });
     } catch (error, stackTrace) {

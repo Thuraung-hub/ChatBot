@@ -4,6 +4,13 @@ import 'package:pinky_shop/providers/cart_provider.dart';
 
 void main() {
   group('CartProvider total price calculations', () {
+    test('empty cart starts with zero total and no items', () {
+      final provider = CartProvider();
+
+      expect(provider.totalAmount, 0.0);
+      expect(provider.items, isEmpty);
+    });
+
     test('adding items updates total price correctly', () {
       final provider = CartProvider();
 
