@@ -52,9 +52,42 @@ class _ChatScreenState extends State<ChatScreen> {
     return regex.hasMatch(text);
   }
 
+  bool _isDeliveryQuery(String query) {
+    return _containsWord(query, 'delivery') ||
+        _containsWord(query, 'date') ||
+        query.contains('how long') ||
+        query.contains('when') && query.contains('arrive');
+  }
+
+  String _formatDate(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '$day/$month/${date.year}';
+  }
+
   /// BOT REPLY FUNCTION
-  Future<void> _botReply(String message, String uid) async {
+  Future<void> _botReply(String message, String uid, String userName) async {
     final query = message.toLowerCase();
+
+    if (_isDeliveryQuery(query)) {
+      final now = DateTime.now();
+      final startDate = now.add(const Duration(days: 2));
+      final endDate = now.add(
+        const Duration(days: AppConstants.deliveryLeadDays),
+      );
+
+      final reply =
+          'Hello $userName! Your order is currently being processed. You can expect delivery between ${_formatDate(startDate)} and ${_formatDate(endDate)}. We\'ll send you a notification as soon as it out for delivery.';
+
+      await FirebaseFirestore.instance.collection('chat').add({
+        'userId': uid,
+        'sender': 'bot',
+        'userName': 'Shop Bot',
+        'text': reply,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      return;
+    }
 
     if (_containsWord(query, 'hi') || _containsWord(query, 'hello')) {
       await FirebaseFirestore.instance.collection('chat').add({
@@ -185,7 +218,7 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     /// BOT REPLY
-    await _botReply(text, auth.user!.uid);
+    await _botReply(text, auth.user!.uid, auth.profile!.name);
 
     setState(() => _sending = false);
 

@@ -9,6 +9,7 @@ import '../widgets/product_card.dart';
 
 const _sampleProducts = [
   {
+    'id': 'sample-premium-wireless-headphones',
     'name': 'Premium Wireless Headphones',
     'description':
         'High-fidelity audio with active noise cancellation and 40-hour battery life.',
@@ -18,6 +19,7 @@ const _sampleProducts = [
     'category': 'Electronics',
   },
   {
+    'id': 'sample-minimalist-leather-watch',
     'name': 'Minimalist Leather Watch',
     'description':
         'Elegant timepiece with genuine Italian leather strap and sapphire crystal.',
@@ -27,6 +29,7 @@ const _sampleProducts = [
     'category': 'Accessories',
   },
   {
+    'id': 'sample-smart-home-assistant',
     'name': 'Smart Home Assistant',
     'description':
         'Voice-controlled hub for your smart home with premium speaker quality.',
@@ -36,6 +39,7 @@ const _sampleProducts = [
     'category': 'Electronics',
   },
   {
+    'id': 'sample-ergonomic-office-chair',
     'name': 'Ergonomic Office Chair',
     'description':
         'Breathable mesh back with adjustable lumbar support for all-day comfort.',
@@ -45,6 +49,7 @@ const _sampleProducts = [
     'category': 'Furniture',
   },
   {
+    'id': 'sample-professional-camera-lens',
     'name': 'Professional Camera Lens',
     'description':
         'Ultra-wide angle prime lens for stunning landscape and architectural photography.',
@@ -54,6 +59,7 @@ const _sampleProducts = [
     'category': 'Photography',
   },
   {
+    'id': 'sample-organic-cotton-hoodie',
     'name': 'Organic Cotton Hoodie',
     'description':
         'Sustainable and incredibly soft hoodie for everyday comfort.',
@@ -69,9 +75,19 @@ class HomeScreen extends StatelessWidget {
 
   Future<void> _seedProducts() async {
     final db = FirebaseFirestore.instance;
-    for (final p in _sampleProducts) {
-      await db.collection('products').add(p);
+
+    final existing = await db.collection('products').limit(1).get();
+    if (existing.docs.isNotEmpty) {
+      return;
     }
+
+    final batch = db.batch();
+    for (final p in _sampleProducts) {
+      final data = Map<String, dynamic>.from(p);
+      final id = data.remove('id') as String;
+      batch.set(db.collection('products').doc(id), data);
+    }
+    await batch.commit();
   }
 
   Future<void> _addToCart(BuildContext context, Product product) async {
@@ -104,7 +120,13 @@ class HomeScreen extends StatelessWidget {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${product.name} added to cart'),
+        content: const Text('Added to cart'),
+        action: SnackBarAction(
+          label: 'Checkout Now',
+          textColor: Colors.white,
+          onPressed: () => Navigator.pushNamed(context, Routes.cart.path),
+        ),
+        duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         backgroundColor: AppTheme.primary,

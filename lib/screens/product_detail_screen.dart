@@ -30,6 +30,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     super.dispose();
   }
 
+  String _formatDate(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '$day/$month/${date.year}';
+  }
+
   Future<bool> _addToCart(BuildContext context, Product product,
       {bool showSnack = true}) async {
     final auth = context.read<AuthService>();
@@ -61,7 +67,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     if (!context.mounted) return true;
     if (showSnack) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Added to cart!'),
+          content: const Text('Added to cart'),
+          action: SnackBarAction(
+            label: 'Checkout Now',
+            textColor: Colors.white,
+            onPressed: () => Navigator.pushNamed(context, Routes.cart.path),
+          ),
+          duration: const Duration(seconds: 3),
           backgroundColor: AppTheme.primary,
           behavior: SnackBarBehavior.floating,
           shape:
@@ -117,6 +129,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   Future<void> _showBuyNowDialog(
       BuildContext context, Product product, String uid) async {
+    final startDate = DateTime.now().add(const Duration(days: 2));
+    final endDate = DateTime.now().add(
+      const Duration(days: AppConstants.deliveryLeadDays),
+    );
+
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -149,6 +166,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             const Text(
               'Proceed with payment for this item now?',
               style: TextStyle(color: AppTheme.textGray),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Estimated delivery: ${_formatDate(startDate)} - ${_formatDate(endDate)}',
+              style: const TextStyle(
+                color: AppTheme.textGray,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
