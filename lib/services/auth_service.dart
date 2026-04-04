@@ -381,21 +381,21 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _clearUserChat(user.uid);
-      await _db.collection(AppConstants.usersCollection).doc(user.uid).delete();
+      final ordersSnapshot = await _db
+          .collection(AppConstants.usersCollection)
+          .doc(user.uid)
+          .collection(AppConstants.ordersCollection)
+          .get();
 
-      try {
-        await user.delete();
-      } catch (firebaseError) {
-        debugPrint('Firebase Auth user delete failed: $firebaseError');
+      if (ordersSnapshot.docs.isNotEmpty) {
+        final batch = _db.batch();
+        for (final doc in ordersSnapshot.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
       }
 
       await SecureStorageService.clearAuthToken();
-      await GoogleSignIn().signOut();
-      await _auth.signOut();
-
-      _user = null;
-      _profile = null;
       notifyListeners();
     } catch (e) {
       _errorMessage = _friendlyError(e);

@@ -148,11 +148,11 @@ class ProfileScreen extends StatelessWidget {
                       onPressed: auth.processing
                           ? null
                           : () => _confirmDeleteMyData(context, auth),
-                      icon: const Icon(Icons.data_saver_off_rounded),
+                      icon: const Icon(Icons.delete_forever_rounded),
                       label: const Text('Delete My Data'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: AppTheme.dark,
-                        side: const BorderSide(color: AppTheme.borderGray),
+                        foregroundColor: AppTheme.red,
+                        side: const BorderSide(color: AppTheme.red),
                         padding: const EdgeInsets.symmetric(vertical: 15),
                       ),
                     ),
@@ -249,7 +249,7 @@ class ProfileScreen extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Delete My Data'),
         content: const Text(
-          'This will remove your account data and authentication record from Firebase. This cannot be undone.',
+          'This will permanently remove your purchased items and order history. Your account will stay active. This cannot be undone.',
         ),
         actions: [
           TextButton(
@@ -259,7 +259,7 @@ class ProfileScreen extends StatelessWidget {
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text(
-              'Delete Data',
+              'Delete',
               style: TextStyle(color: AppTheme.red),
             ),
           ),
@@ -271,9 +271,14 @@ class ProfileScreen extends StatelessWidget {
 
     try {
       await auth.deleteMyData();
-      if (context.mounted) {
-        Navigator.pushReplacementNamed(context, Routes.login.path);
-      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Purchase history deleted successfully.'),
+          backgroundColor: AppTheme.green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

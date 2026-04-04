@@ -18,9 +18,26 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscure = true;
+  bool _canSubmit = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController.addListener(_updateCanSubmit);
+    _passwordController.addListener(_updateCanSubmit);
+  }
+
+  void _updateCanSubmit() {
+    final next = _emailController.text.trim().isNotEmpty &&
+        _passwordController.text.isNotEmpty;
+    if (_canSubmit == next) return;
+    setState(() => _canSubmit = next);
+  }
 
   @override
   void dispose() {
+    _emailController.removeListener(_updateCanSubmit);
+    _passwordController.removeListener(_updateCanSubmit);
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -198,8 +215,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed:
-                                auth.processing ? null : _handleEmailLogin,
+                          onPressed: (auth.processing || !_canSubmit)
+                            ? null
+                            : _handleEmailLogin,
                             child: auth.processing
                                 ? const SizedBox(
                                     width: 22,
