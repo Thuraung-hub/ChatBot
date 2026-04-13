@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 import '../config/app_constants.dart';
 import '../config/app_validators.dart';
 import '../app_theme.dart';
+import '../services/auth_service.dart';
+import '../widgets/rbac_visibility.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -54,7 +57,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
     setState(() => _subAdminLoading = true);
 
     try {
-      final users = FirebaseFirestore.instance.collection('users');
+      final users =
+          FirebaseFirestore.instance.collection(AppConstants.usersCollection);
       final snapshot =
           await users.where('email', isEqualTo: email).limit(1).get();
 
@@ -111,7 +115,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
       return;
     }
 
-    final parsedPrice = double.parse(_priceCtrl.text.trim());
+    final parsedPrice = double.tryParse(_priceCtrl.text.trim());
+    if (parsedPrice == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid price.'),
+          backgroundColor: AppTheme.red,
+        ),
+      );
+      return;
+    }
 
     setState(() {
       _loading = true;
@@ -119,8 +133,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
     });
 
     try {
-      final docRef =
-          await FirebaseFirestore.instance.collection('products').add({
+      final docRef = await FirebaseFirestore.instance
+          .collection(AppConstants.productsCollection)
+          .add({
         'name': _nameCtrl.text.trim(),
         'description': _descCtrl.text.trim(),
         'price': parsedPrice,
@@ -158,6 +173,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    final isAdmin = context.watch<AuthService>().isAdmin;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin Dashboard'),
@@ -377,24 +394,29 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           validator: AppValidators.review,
                         ),
                         const SizedBox(height: 24),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: _loading ? null : _handleSubmit,
-                            icon: _loading
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                        color: Colors.white, strokeWidth: 2.5))
-                                : const Icon(Icons.add_rounded),
-                            label: Text(
-                                _loading ? 'Adding...' : 'Add Product to Store',
-                                style: const TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.w800)),
-                            style: ElevatedButton.styleFrom(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 18)),
+                        RbacVisibility(
+                          isAdmin: isAdmin,
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _loading ? null : _handleSubmit,
+                              icon: _loading
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2.5))
+                                  : const Icon(Icons.add_rounded),
+                              label: Text(
+                                  _loading ? 'Adding...' : 'Add Product',
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800)),
+                              style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 18)),
+                            ),
                           ),
                         ),
                       ],
@@ -470,35 +492,39 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             },
                           ),
                           const SizedBox(height: 20),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed:
-                                  _subAdminLoading ? null : _handleAddSubAdmin,
-                              icon: _subAdminLoading
-                                  ? const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2.5,
+                          RbacVisibility(
+                            isAdmin: isAdmin,
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: _subAdminLoading
+                                    ? null
+                                    : _handleAddSubAdmin,
+                                icon: _subAdminLoading
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2.5,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.admin_panel_settings_outlined,
                                       ),
-                                    )
-                                  : const Icon(
-                                      Icons.admin_panel_settings_outlined,
-                                    ),
-                              label: Text(
-                                _subAdminLoading
-                                    ? 'Granting Access...'
-                                    : 'Grant Sub-Admin Access',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
+                                label: Text(
+                                  _subAdminLoading
+                                      ? 'Granting Access...'
+                                      : 'Manage Staff',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 18),
+                                style: ElevatedButton.styleFrom(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 18),
+                                ),
                               ),
                             ),
                           ),

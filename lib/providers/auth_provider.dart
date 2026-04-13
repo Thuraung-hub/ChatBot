@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../config/app_constants.dart';
 import '../models/user_profile.dart';
 import '../services/secure_storage_service.dart';
 
@@ -60,6 +61,29 @@ class AuthProvider extends ChangeNotifier {
 
     } catch (e) {
       debugPrint('Error loading profile: $e');
+    }
+  }
+
+  // RBAC helper: checks directly from Firestore whether the current user
+  // has the strict 'admin' role.
+  Future<bool> hasFirestoreAdminRole() async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return false;
+
+    try {
+      final doc = await _db
+          .collection(AppConstants.usersCollection)
+          .doc(currentUser.uid)
+          .get();
+
+      if (!doc.exists) return false;
+
+      final data = doc.data();
+      final role = (data?['role'] ?? AppConstants.customerRole).toString();
+      return role == AppConstants.adminRole;
+    } catch (e) {
+      debugPrint('Error checking admin role: $e');
+      return false;
     }
   }
 

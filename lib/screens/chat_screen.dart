@@ -131,6 +131,10 @@ class _ChatScreenState extends State<ChatScreen> {
     return '$day/$month/${date.year}';
   }
 
+  Map<String, dynamic> _safeMap(dynamic data) {
+    return data is Map<String, dynamic> ? data : <String, dynamic>{};
+  }
+
   String? _buildQuickLocalReply(String message, String userName) {
     final query = message.toLowerCase();
 
@@ -180,70 +184,79 @@ class _ChatScreenState extends State<ChatScreen> {
     final query = message.toLowerCase().trim();
     if (query.isEmpty) return null;
 
-    final snapshot = await FirebaseFirestore.instance
-        .collection('products')
-        .limit(120)
-        .get();
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('products')
+          .limit(120)
+          .get();
 
-    final docs = snapshot.docs;
-    if (docs.isEmpty) return null;
+      final docs = snapshot.docs;
+      if (docs.isEmpty) return null;
 
-    final isReview = _isReviewQuery(query);
+      final isReview = _isReviewQuery(query);
 
-    final matchedByName = docs.where((doc) {
-      final data = doc.data();
-      final name = (data['name'] ?? '').toString().toLowerCase().trim();
-      return name.isNotEmpty && query.contains(name);
-    }).toList();
-
-    if (matchedByName.isNotEmpty) {
-      final product = matchedByName.first.data();
-      final name = (product['name'] ?? 'Product').toString();
-      final description = (product['description'] ?? '').toString().trim();
-      final price = (product['price'] ?? '').toString().trim();
-      final review = (product['review'] ?? '').toString().trim();
-
-      if (isReview) {
-        if (review.isNotEmpty) {
-          return 'Review for $name:\n\n$review';
-        }
-        return 'No review available yet for $name.';
-      }
-
-      return '$name\n\n$description\nPrice: \$$price';
-    }
-
-    String? matchedCategory;
-    for (final doc in docs) {
-      final data = doc.data();
-      final category = (data['category'] ?? '').toString().trim();
-      if (category.isNotEmpty && query.contains(category.toLowerCase())) {
-        matchedCategory = category;
-        break;
-      }
-    }
-
-    if (matchedCategory != null) {
-      final categoryProducts = docs.where((doc) {
-        final data = doc.data();
-        final category = (data['category'] ?? '').toString();
-        return category.toLowerCase() == matchedCategory!.toLowerCase();
+      final matchedByName = docs.where((doc) {
+        final data = _safeMap(doc.data());
+        final name = (data['name'] ?? '').toString().toLowerCase().trim();
+        return name.isNotEmpty && query.contains(name);
       }).toList();
 
-      if (categoryProducts.isEmpty) return null;
+      if (matchedByName.isNotEmpty) {
+        final product = _safeMap(matchedByName.first.data());
+        final name = (product['name'] ?? 'Product').toString();
+        final description = (product['description'] ?? '').toString().trim();
+        final price = (product['price'] ?? '').toString().trim();
+        final review = (product['review'] ?? '').toString().trim();
 
-      final buffer = StringBuffer('Products in $matchedCategory:\n\n');
-      for (final productDoc in categoryProducts) {
-        final p = productDoc.data();
-        buffer.writeln((p['name'] ?? '').toString());
-        buffer.writeln((p['description'] ?? '').toString());
-        buffer.writeln('Price: \$${p['price']}');
-        buffer.writeln('');
+        if (isReview) {
+          if (review.isNotEmpty) {
+            return 'Review for $name:\n\n$review';
+          }
+          return 'No review available yet for $name.';
+        }
+
+        return '$name\n\n$description\nPrice: \$$price';
       }
-      return buffer.toString().trimRight();
-    }
 
-    return null;
+      String? matchedCategory;
+      for (final doc in docs) {
+        final data = _safeMap(doc.data());
+        final category = (data['category'] ?? '').toString().trim();
+        if (category.isNotEmpty && query.contains(category.toLowerCase())) {
+          matchedCategory = category;
+          break;
+        }
+      }
+
+      if (matchedCategory != null) {
+        final categoryProducts = docs.where((doc) {
+          final data = _safeMap(doc.data());
+          final category = (data['category'] ?? '').toString();
+          return category.toLowerCase() == matchedCategory!.toLowerCase();
+        }).toList();
+
+        if (categoryProducts.isEmpty) return null;
+
+        final buffer = StringBuffer('Products in $matchedCategory:\n\n');
+        for (final productDoc in categoryProducts) {
+          final p = _safeMap(productDoc.data());
+          buffer.writeln((p['name'] ?? '').toString());
+          buffer.writeln((p['description'] ?? '').toString());
+          buffer.writeln('Price: \$${p['price'] ?? '-'}');
+          buffer.writeln('');
+        }
+        return buffer.toString().trimRight();
+      }
+
+      return null;
+    } catch (error, stackTrace) {
+      await MonitoringService.captureException(
+        error,
+        stackTrace: stackTrace,
+        hint: 'chat_catalog_reply',
+      );
+      return 'I could not load product information right now. Please try again in a moment.';
+    }
   }
 
   /// BOT REPLY FUNCTION
@@ -370,6 +383,15 @@ class _ChatScreenState extends State<ChatScreen> {
                   .where('userId', isEqualTo: myUid)
                   .snapshots(),
               builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return const Center(
+                    child: Text(
+                      'Unable to load chat right now. Please refresh and try again.',
+                      style: TextStyle(color: Color(0xFF9AA4B2)),
+                    ),
+                  );
+                }
+
                 if (!snapshot.hasData) {
                   return const Center(
                     child: CircularProgressIndicator(color: AppTheme.primary),
@@ -378,8 +400,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
                 final docs = snapshot.data!.docs;
                 docs.sort((a, b) {
-                  final aData = a.data() as Map<String, dynamic>;
-                  final bData = b.data() as Map<String, dynamic>;
+                  final aData = _safeMap(a.data());
+                  final bData = _safeMap(b.data());
                   final aTime = aData['createdAt'] as Timestamp?;
                   final bTime = bData['createdAt'] as Timestamp?;
 
@@ -406,26 +428,26 @@ class _ChatScreenState extends State<ChatScreen> {
                   });
                 }
 
-                                return ListView.builder(
-                                  controller: _scrollController,
-                                  padding: const EdgeInsets.all(16),
-                                  itemCount: docs.length + (_showTypingIndicator ? 1 : 0),
-                                  itemBuilder: (context, i) {
-                                    if (_showTypingIndicator && i == docs.length) {
-                                      return const _TypingIndicatorBubble();
-                                    }
+                return ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: docs.length + (_showTypingIndicator ? 1 : 0),
+                  itemBuilder: (context, i) {
+                    if (_showTypingIndicator && i == docs.length) {
+                      return const _TypingIndicatorBubble();
+                    }
 
-                                    final data = docs[i].data() as Map<String, dynamic>;
-                                    final sender = (data['sender'] ?? 'user').toString();
-                                    final isMe = sender == 'user';
+                    final data = _safeMap(docs[i].data());
+                    final sender = (data['sender'] ?? 'user').toString();
+                    final isMe = sender == 'user';
 
-                                    return _MessageBubble(
-                                      userName: data['userName'] ?? 'User',
-                                      text: data['text'] ?? '',
-                                      isMe: isMe,
-                                    );
-                                  },
-                                );
+                    return _MessageBubble(
+                      userName: (data['userName'] ?? 'User').toString(),
+                      text: (data['text'] ?? '').toString(),
+                      isMe: isMe,
+                    );
+                  },
+                );
               },
             ),
           ),
@@ -434,8 +456,8 @@ class _ChatScreenState extends State<ChatScreen> {
             controller: _controller,
             sending: _sending,
             onSend: _sendMessage,
-                            quickReplies: _quickReplies,
-                            onQuickReplySelected: _sendQuickReply,
+            quickReplies: _quickReplies,
+            onQuickReplySelected: _sendQuickReply,
           ),
         ],
       ),

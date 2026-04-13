@@ -13,6 +13,10 @@ class HttpGeminiClient implements GeminiClient {
   @override
   Future<String> generateReply(String prompt) async {
     final apiKey = Config.geminiApiKey;
+    if (apiKey.trim().isEmpty) {
+      throw Exception('AI assistant is not configured right now.');
+    }
+
     final url = Uri.parse(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey',
     );
@@ -37,20 +41,39 @@ class HttpGeminiClient implements GeminiClient {
       throw Exception('Gemini request failed: ${response.statusCode}');
     }
 
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    Map<String, dynamic> data;
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic>) {
+        throw const FormatException('Unexpected response shape');
+      }
+      data = decoded;
+    } catch (_) {
+      throw Exception('AI service returned an unexpected response.');
+    }
+
     final candidates = data['candidates'] as List<dynamic>?;
     if (candidates == null || candidates.isEmpty) {
       return '';
     }
 
-    final first = candidates.first as Map<String, dynamic>;
+    final first = candidates.first;
+    if (first is! Map<String, dynamic>) {
+      return '';
+    }
+
     final content = first['content'] as Map<String, dynamic>?;
     final parts = content?['parts'] as List<dynamic>?;
     if (parts == null || parts.isEmpty) {
       return '';
     }
 
-    final text = (parts.first as Map<String, dynamic>)['text'] as String?;
+    final firstPart = parts.first;
+    if (firstPart is! Map<String, dynamic>) {
+      return '';
+    }
+
+    final text = firstPart['text'] as String?;
     return text?.trim() ?? '';
   }
 }
