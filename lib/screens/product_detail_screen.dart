@@ -157,15 +157,31 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final now = DateTime.now();
     final deliveryDate =
         now.add(const Duration(days: AppConstants.deliveryLeadDays));
+    final auth = context.read<AuthService>();
+    final profile = auth.profile;
 
-    await FirebaseFirestore.instance.collection('users/$uid/orders').add({
+    final orderData = {
       'productId': product.id,
       'productName': product.name,
       'productPrice': product.price,
       'productImageUrl': product.imageUrl,
+      'customerId': uid,
+      'customerName': profile?.name ?? 'Customer',
+      'customerEmail': profile?.email ?? auth.user?.email ?? '',
       'orderedAt': now.toIso8601String(),
       'deliveryDate': deliveryDate.toIso8601String(),
       'status': AppConstants.processingOrderStatus,
+    };
+
+    await FirebaseFirestore.instance.collection('users/$uid/orders').add(orderData);
+
+    await FirebaseFirestore.instance
+        .collection(AppConstants.adminNotificationsCollection)
+        .add({
+      ...orderData,
+      'type': 'purchase',
+      'read': false,
+      'createdAt': now.toIso8601String(),
     });
 
     if (!context.mounted) return;

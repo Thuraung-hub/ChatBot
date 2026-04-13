@@ -1,9 +1,12 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../config/app_constants.dart';
+
 import '../app_theme.dart';
+import '../config/app_constants.dart';
 import '../services/auth_service.dart';
 import '../widgets/app_action_button.dart';
+import 'admin_notifications_screen.dart';
 import 'buy_item_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -24,9 +27,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _openBuyItemScreen(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const BuyItemScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const BuyItemScreen()),
     );
   }
 
@@ -34,6 +35,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
     final profile = auth.profile;
+    final isStrictAdmin = profile?.role == AppConstants.adminRole;
+    final canBuyItem = profile?.role == AppConstants.customerRole;
     final roleLabel = profile?.role == AppConstants.subAdminRole
         ? 'Sub-Admin'
         : (profile?.role == AppConstants.adminRole ? 'Admin' : 'Customer');
@@ -51,7 +54,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Banner + Avatar
             Stack(
               clipBehavior: Clip.none,
               alignment: Alignment.bottomLeft,
@@ -72,9 +74,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8))
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
                       ],
                     ),
                     padding: const EdgeInsets.all(4),
@@ -83,52 +86,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         color: AppTheme.primaryLight,
                         borderRadius: BorderRadius.circular(18),
                       ),
-                      child: const Icon(Icons.person_rounded,
-                          color: AppTheme.primary, size: 44),
+                      child: const Icon(
+                        Icons.person_rounded,
+                        color: AppTheme.primary,
+                        size: 44,
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 56),
-
             Padding(
               padding: const EdgeInsets.all(24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(profile.name,
-                                style: const TextStyle(
-                                    fontSize: 26,
-                                    fontWeight: FontWeight.w900,
-                                    color: AppTheme.textGray)),
+                            Text(
+                              profile.name,
+                              style: const TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w900,
+                                color: AppTheme.textGray,
+                              ),
+                            ),
                             const SizedBox(height: 2),
-                            Text(profile.email,
-                                style: const TextStyle(
-                                    color: AppTheme.textGray, fontSize: 14)),
+                            Text(
+                              profile.email,
+                              style: const TextStyle(
+                                color: AppTheme.textGray,
+                                fontSize: 14,
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  Text(
+                    'ACCOUNT INFORMATION',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.grey.shade400,
+                      letterSpacing: 1.5,
                     ),
-                    const SizedBox(height: 32),
-
-                  // Account info section
-                  Text('ACCOUNT INFORMATION',
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.grey.shade400,
-                          letterSpacing: 1.5)),
+                  ),
                   const SizedBox(height: 12),
-
                   _InfoTile(
                     icon: Icons.mail_outline_rounded,
                     label: 'Email',
@@ -148,15 +159,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     backgroundColor: AppTheme.primaryLight,
                     foregroundColor: AppTheme.primary,
                   ),
-                  const SizedBox(height: 18),
-                  AppActionButton(
-                    label: 'Buy Item',
-                    icon: Icons.inventory_2_outlined,
-                    onPressed: () => _openBuyItemScreen(context),
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
-                  ),
-                  const SizedBox(height: 12),
+                  if (isStrictAdmin) ...[
+                    const SizedBox(height: 12),
+                    StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: FirebaseFirestore.instance
+                          .collection(AppConstants.adminNotificationsCollection)
+                          .where('read', isEqualTo: false)
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        final unreadCount = snapshot.data?.docs.length ?? 0;
+                        return AppActionButton(
+                          label: unreadCount > 0
+                              ? 'Notifications ($unreadCount)'
+                              : 'Notifications',
+                          icon: Icons.notifications_none_rounded,
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const AdminNotificationsScreen(),
+                              ),
+                            );
+                          },
+                          backgroundColor: AppTheme.primaryLight,
+                          foregroundColor: AppTheme.primary,
+                        );
+                      },
+                    ),
+                  ],
+                  if (canBuyItem) ...[
+                    const SizedBox(height: 18),
+                    AppActionButton(
+                      label: 'Buy Item',
+                      icon: Icons.inventory_2_outlined,
+                      onPressed: () => _openBuyItemScreen(context),
+                      backgroundColor: AppTheme.primaryLight,
+                      foregroundColor: AppTheme.primary,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   AppActionButton(
                     label: 'Logout',
                     icon: Icons.logout_rounded,
@@ -175,7 +216,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _confirmDeleteAccount(
-      BuildContext context, AuthService auth) async {
+    BuildContext context,
+    AuthService auth,
+  ) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -216,7 +259,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _confirmDeleteMyData(
-      BuildContext context, AuthService auth) async {
+    BuildContext context,
+    AuthService auth,
+  ) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -338,8 +383,7 @@ class _InfoTile extends StatelessWidget {
   final String label;
   final String value;
 
-  const _InfoTile(
-      {required this.icon, required this.label, required this.value});
+  const _InfoTile({required this.icon, required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -357,18 +401,23 @@ class _InfoTile extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label.toUpperCase(),
-                  style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textGray,
-                      letterSpacing: 0.8)),
-              const SizedBox(height: 2),
-              Text(value,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                      color: AppTheme.dark)),
+              Text(
+                label.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textGray,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textDark,
+                ),
+              ),
             ],
           ),
         ],

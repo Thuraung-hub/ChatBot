@@ -16,6 +16,21 @@ class AdminDashboard extends StatefulWidget {
 }
 
 class _AdminDashboardState extends State<AdminDashboard> {
+  static const String _msgSubAdminNotFound =
+    'User not found. Ask the user to register first, then assign Sub-Admin role.';
+  static const String _msgSubAdminGranted =
+    'Sub-Admin access granted successfully.';
+  static const String _msgSubAdminGrantFailed =
+    'Failed to assign Sub-Admin role: ';
+  static const String _msgUserNotFound = 'User not found.';
+  static const String _msgNotSubAdmin = 'This user is not a Sub-Admin.';
+  static const String _msgSubAdminRemoved =
+    'Sub-Admin access removed successfully.';
+  static const String _msgSubAdminRemoveFailed =
+    'Failed to remove Sub-Admin role: ';
+  static const String _msgValidPrice = 'Please enter a valid price.';
+  static const String _msgProductAdded = 'Product added successfully!';
+
   final _formKey = GlobalKey<FormState>();
   final _subAdminFormKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
@@ -66,9 +81,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'User not found. Ask the user to register first, then assign Sub-Admin role.',
-            ),
+            content: Text(_msgSubAdminNotFound),
             backgroundColor: AppTheme.red,
           ),
         );
@@ -91,7 +104,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Sub-Admin access granted successfully.'),
+          content: Text(_msgSubAdminGranted),
           backgroundColor: AppTheme.green,
         ),
       );
@@ -99,7 +112,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to assign Sub-Admin role: $e'),
+          content: Text('$_msgSubAdminGrantFailed$e'),
           backgroundColor: AppTheme.red,
         ),
       );
@@ -111,16 +124,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Future<void> _handleRemoveSubAdmin() async {
-    if (!(_subAdminFormKey.currentState?.validate() ?? false)) {
+    final email = _subAdminEmailCtrl.text.trim().toLowerCase();
+    final emailError = AppValidators.email(email);
+    if (emailError != null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(emailError), backgroundColor: AppTheme.red),
+      );
       return;
     }
-
-    final email = _subAdminEmailCtrl.text.trim().toLowerCase();
 
     setState(() => _subAdminLoading = true);
 
     try {
-      final users = FirebaseFirestore.instance.collection('users');
+      final users =
+          FirebaseFirestore.instance.collection(AppConstants.usersCollection);
       final snapshot =
           await users.where('email', isEqualTo: email).limit(1).get();
 
@@ -128,7 +146,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('User not found.'),
+            content: Text(_msgUserNotFound),
             backgroundColor: AppTheme.red,
           ),
         );
@@ -144,7 +162,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('This user is not a Sub-Admin.'),
+            content: Text(_msgNotSubAdmin),
             backgroundColor: AppTheme.red,
           ),
         );
@@ -159,7 +177,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Sub-Admin access removed successfully.'),
+          content: Text(_msgSubAdminRemoved),
           backgroundColor: AppTheme.green,
         ),
       );
@@ -167,7 +185,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to remove Sub-Admin role: $e'),
+          content: Text('$_msgSubAdminRemoveFailed$e'),
           backgroundColor: AppTheme.red,
         ),
       );
@@ -188,7 +206,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter a valid price.'),
+          content: Text(_msgValidPrice),
           backgroundColor: AppTheme.red,
         ),
       );
@@ -241,7 +259,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final isAdmin = context.watch<AuthService>().isAdmin;
+    final auth = context.watch<AuthService>();
+    final isAdmin = auth.isAdmin;
+    final isStrictAdmin = auth.profile?.role == AppConstants.adminRole;
 
     return Scaffold(
       appBar: AppBar(
@@ -325,7 +345,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 Icon(Icons.check_circle_outline_rounded,
                                     color: AppTheme.green, size: 18),
                                 SizedBox(width: 8),
-                                Text('Product added successfully!',
+                                Text(_msgProductAdded,
                                     style: TextStyle(
                                         color: AppTheme.green,
                                         fontWeight: FontWeight.w600,
@@ -493,76 +513,75 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
                   const SizedBox(height: 20),
 
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: AppTheme.borderGray),
-                    ),
-                    padding: const EdgeInsets.all(24),
-                    child: Form(
-                      key: _subAdminFormKey,
-                      autovalidateMode: AutovalidateMode.onUserInteraction,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primaryLight,
-                                  borderRadius: BorderRadius.circular(14),
+                  if (isStrictAdmin) ...[
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: AppTheme.borderGray),
+                      ),
+                      padding: const EdgeInsets.all(24),
+                      child: Form(
+                        key: _subAdminFormKey,
+                        autovalidateMode: AutovalidateMode.onUserInteraction,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primaryLight,
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: const Icon(
+                                    Icons.admin_panel_settings_outlined,
+                                    color: AppTheme.primary,
+                                    size: 22,
+                                  ),
                                 ),
-                                child: const Icon(
-                                  Icons.admin_panel_settings_outlined,
-                                  color: AppTheme.primary,
-                                  size: 22,
+                                const SizedBox(width: 12),
+                                const Text(
+                                  'Add Sub-Admin',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.textDark,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              const Text(
-                                'Add Sub-Admin',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppTheme.textDark,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Sub-admin users have the same permissions as admins.',
-                            style: TextStyle(
-                              color: AppTheme.textDark,
-                              fontSize: 13,
+                              ],
                             ),
-                          ),
-                          const SizedBox(height: 18),
-                          _FormField(
-                            controller: _subAdminEmailCtrl,
-                            label: 'User Email *',
-                            hint: 'user@example.com',
-                            icon: Icons.mail_outline_rounded,
-                            keyboardType: TextInputType.emailAddress,
-                            validator: AppValidators.email,
-                          ),
-                          const SizedBox(height: 14),
-                          _FormField(
-                            controller: _subAdminNameCtrl,
-                            label: 'Display Name (Optional)',
-                            hint: 'Name in profile',
-                            icon: Icons.person_outline_rounded,
-                            validator: (value) {
-                              if ((value ?? '').trim().isEmpty) return null;
-                              return AppValidators.name(value);
-                            },
-                          ),
-                          const SizedBox(height: 20),
-                          RbacVisibility(
-                            isAdmin: isAdmin,
-                            child: SizedBox(
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Sub-admin users have the same permissions as admins.',
+                              style: TextStyle(
+                                color: AppTheme.textDark,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            _FormField(
+                              controller: _subAdminEmailCtrl,
+                              label: 'User Email *',
+                              hint: 'user@example.com',
+                              icon: Icons.mail_outline_rounded,
+                              keyboardType: TextInputType.emailAddress,
+                              validator: AppValidators.email,
+                            ),
+                            const SizedBox(height: 14),
+                            _FormField(
+                              controller: _subAdminNameCtrl,
+                              label: 'Display Name (Optional)',
+                              hint: 'Name in profile',
+                              icon: Icons.person_outline_rounded,
+                              validator: (value) {
+                                if ((value ?? '').trim().isEmpty) return null;
+                                return AppValidators.name(value);
+                              },
+                            ),
+                            const SizedBox(height: 20),
+                            SizedBox(
                               width: double.infinity,
                               child: ElevatedButton.icon(
                                 onPressed: _subAdminLoading
@@ -595,11 +614,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          RbacVisibility(
-                            isAdmin: isAdmin,
-                            child: SizedBox(
+                            const SizedBox(height: 12),
+                            SizedBox(
                               width: double.infinity,
                               child: OutlinedButton.icon(
                                 onPressed: _subAdminLoading
@@ -628,13 +644,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
 
-                  const SizedBox(height: 20),
+                    const SizedBox(height: 20),
+                  ],
 
                   Container(
                     width: double.infinity,

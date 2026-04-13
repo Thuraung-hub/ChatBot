@@ -21,6 +21,7 @@ class AppConstants {
   static const productsCollection = 'products';
   static const cartCollection = 'cart';
   static const ordersCollection = 'orders';
+  static const adminNotificationsCollection = 'admin_notifications';
   static const commentsCollection = 'comments';
 
   static const adminRole = 'admin';
