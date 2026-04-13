@@ -25,10 +25,19 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _showTypingIndicator = false;
   int _lastMessageCount = 0;
 
-  static const List<_QuickReplyOption> _quickReplies = [
-    _QuickReplyOption(label: 'Track Order', message: 'Track my order delivery status'),
-    _QuickReplyOption(label: 'Return Policy', message: 'What is the return policy?'),
-    _QuickReplyOption(label: 'Product Info', message: 'Tell me more product info and details'),
+  static const List<ChatQuickReply> _quickReplies = [
+    ChatQuickReply(
+      label: 'Track Order',
+      message: 'Track my order delivery status',
+    ),
+    ChatQuickReply(
+      label: 'Return Policy',
+      message: 'What is the return policy?',
+    ),
+    ChatQuickReply(
+      label: 'Product Info',
+      message: 'Tell me more product info and details',
+    ),
   ];
 
   static const String _returnPolicyMessage =
@@ -397,26 +406,26 @@ class _ChatScreenState extends State<ChatScreen> {
                   });
                 }
 
-                      return ListView.builder(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.all(16),
-                        itemCount: docs.length + (_showTypingIndicator ? 1 : 0),
-                        itemBuilder: (context, i) {
-                          if (_showTypingIndicator && i == docs.length) {
-                            return const _TypingIndicatorBubble();
-                          }
+                                return ListView.builder(
+                                  controller: _scrollController,
+                                  padding: const EdgeInsets.all(16),
+                                  itemCount: docs.length + (_showTypingIndicator ? 1 : 0),
+                                  itemBuilder: (context, i) {
+                                    if (_showTypingIndicator && i == docs.length) {
+                                      return const _TypingIndicatorBubble();
+                                    }
 
-                          final data = docs[i].data() as Map<String, dynamic>;
-                          final sender = (data['sender'] ?? 'user').toString();
-                          final isMe = sender == 'user';
+                                    final data = docs[i].data() as Map<String, dynamic>;
+                                    final sender = (data['sender'] ?? 'user').toString();
+                                    final isMe = sender == 'user';
 
-                          return _MessageBubble(
-                            userName: data['userName'] ?? 'User',
-                            text: data['text'] ?? '',
-                            isMe: isMe,
-                          );
-                        },
-                      );
+                                    return _MessageBubble(
+                                      userName: data['userName'] ?? 'User',
+                                      text: data['text'] ?? '',
+                                      isMe: isMe,
+                                    );
+                                  },
+                                );
               },
             ),
           ),
@@ -425,21 +434,14 @@ class _ChatScreenState extends State<ChatScreen> {
             controller: _controller,
             sending: _sending,
             onSend: _sendMessage,
-                  quickReplies: _quickReplies,
-                  onQuickReplySelected: _sendQuickReply,
+                            quickReplies: _quickReplies,
+                            onQuickReplySelected: _sendQuickReply,
           ),
         ],
       ),
     );
   }
 }
-
-      class _QuickReplyOption {
-        final String label;
-        final String message;
-
-        const _QuickReplyOption({required this.label, required this.message});
-      }
 
 class _MessageBubble extends StatelessWidget {
   final String userName;

@@ -3,12 +3,19 @@ import 'package:flutter/material.dart';
 import '../app_theme.dart';
 import '../config/app_validators.dart';
 
+class ChatQuickReply {
+  final String label;
+  final String message;
+
+  const ChatQuickReply({required this.label, required this.message});
+}
+
 class ChatInputBar extends StatelessWidget {
   final GlobalKey<FormState> formKey;
   final TextEditingController controller;
   final bool sending;
   final VoidCallback onSend;
-  final List<dynamic> quickReplies;
+  final List<ChatQuickReply> quickReplies;
   final ValueChanged<String> onQuickReplySelected;
 
   const ChatInputBar({
