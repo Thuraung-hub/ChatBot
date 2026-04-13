@@ -1,8 +1,10 @@
+import '../config/app_constants.dart';
+
 class UserProfile {
   final String id;
   final String name;
   final String email;
-  final String role; // 'admin' | 'customer'
+  final String role; // 'admin' | 'sub-admin' | 'customer'
 
   UserProfile({
     required this.id,
@@ -11,7 +13,8 @@ class UserProfile {
     required this.role,
   });
 
-  bool get isAdmin => role == 'admin';
+  bool get isAdmin =>
+      role == AppConstants.adminRole || role == AppConstants.subAdminRole;
 
   factory UserProfile.fromMap(String id, Map<String, dynamic> data) {
     return UserProfile(

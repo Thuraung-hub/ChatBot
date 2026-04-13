@@ -23,6 +23,8 @@ class AppConstants {
   static const ordersCollection = 'orders';
   static const commentsCollection = 'comments';
 
+  static const adminRole = 'admin';
+  static const subAdminRole = 'sub-admin';
   static const customerRole = 'customer';
   static const processingOrderStatus = 'processing';
 }

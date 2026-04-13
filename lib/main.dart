@@ -256,9 +256,7 @@ class _PinkyShopAppState extends State<PinkyShopApp> {
           builder: (_) => const _PrivateRoute(child: ProfileScreen()),
         );
       case AppConstants.chatRoute:
-        return MaterialPageRoute(
-          builder: (_) => const _PrivateRoute(child: ChatScreen()),
-        );
+        return _buildSlideUpRoute(const _PrivateRoute(child: ChatScreen()));
       case AppConstants.adminRoute:
         return MaterialPageRoute(
           builder: (_) => const _AdminRoute(child: AdminDashboard()),
@@ -275,6 +273,28 @@ class _PinkyShopAppState extends State<PinkyShopApp> {
           builder: (_) => const _AuthGate(),
         );
     }
+  }
+
+  PageRouteBuilder<dynamic> _buildSlideUpRoute(Widget child) {
+    return PageRouteBuilder(
+      pageBuilder: (_, animation, secondaryAnimation) => child,
+      transitionDuration: const Duration(milliseconds: 280),
+      reverseTransitionDuration: const Duration(milliseconds: 220),
+      transitionsBuilder: (_, animation, secondaryAnimation, child) {
+        final slideTween = Tween<Offset>(
+          begin: const Offset(0, 0.12),
+          end: Offset.zero,
+        ).chain(CurveTween(curve: Curves.easeOutCubic));
+
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: animation.drive(slideTween),
+            child: child,
+          ),
+        );
+      },
+    );
   }
 }
 

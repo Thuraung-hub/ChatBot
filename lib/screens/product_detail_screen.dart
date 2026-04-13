@@ -337,6 +337,45 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
         return Scaffold(
           backgroundColor: AppTheme.screenBg,
+          bottomNavigationBar: auth.isAdmin
+              ? null
+              : SafeArea(
+                  top: false,
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surface,
+                      border: Border(
+                        top: BorderSide(
+                          color: AppTheme.borderGray.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: (_adding || _buyingNow)
+                            ? null
+                            : () => _addToCart(context, product),
+                        icon: _adding
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.shopping_cart_outlined),
+                        label: Text(_adding ? 'Adding...' : 'Add to Cart'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          minimumSize: const Size.fromHeight(54),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
           body: CustomScrollView(
             slivers: [
               // Hero image app bar
@@ -349,7 +388,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     backgroundColor: Colors.white.withValues(alpha: 0.9),
                     child: IconButton(
                       icon: const Icon(Icons.arrow_back_rounded,
-                          color: AppTheme.dark),
+                          color: Colors.black),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ),
@@ -381,11 +420,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ],
                 ],
                 flexibleSpace: FlexibleSpaceBar(
-                  background: CachedNetworkImage(
-                    imageUrl: product.imageUrl,
-                    fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) =>
-                        Container(color: AppTheme.bgGray),
+                  background: Hero(
+                    tag: 'product-image-${product.id}',
+                    child: CachedNetworkImage(
+                      imageUrl: product.imageUrl,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) =>
+                          Container(color: AppTheme.bgGray),
+                    ),
                   ),
                 ),
               ),
@@ -452,26 +494,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
 
                       if (!auth.isAdmin) ...[
-                        const SizedBox(height: 28),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: (_adding || _buyingNow)
-                                ? null
-                                : () => _addToCart(context, product),
-                            icon: _adding
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                        color: Colors.white, strokeWidth: 2))
-                                : const Icon(Icons.shopping_cart_outlined),
-                            label: Text(_adding ? 'Adding...' : 'Add to Cart'),
-                            style: ElevatedButton.styleFrom(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 18)),
-                          ),
-                        ),
                         const SizedBox(height: 12),
                         SizedBox(
                           width: double.infinity,

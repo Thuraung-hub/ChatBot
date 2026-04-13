@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../services/monitoring_service.dart';
 import '../widgets/category_section_header.dart';
 import '../widgets/product_card.dart';
+import '../widgets/product_skeleton.dart';
 
 const _sampleProducts = [
   {
@@ -187,8 +188,7 @@ class HomeScreen extends StatelessWidget {
         stream: FirebaseFirestore.instance.collection('products').snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-                child: CircularProgressIndicator(color: AppTheme.primary));
+            return const ProductSkeletonGrid();
           }
 
           if (snapshot.hasError) {
@@ -200,8 +200,7 @@ class HomeScreen extends StatelessWidget {
           // Seed if empty
           if (docs.isEmpty) {
             _seedProducts();
-            return const Center(
-                child: CircularProgressIndicator(color: AppTheme.primary));
+            return const ProductSkeletonGrid();
           }
 
           final products = docs

@@ -22,7 +22,25 @@ class _ChatScreenState extends State<ChatScreen> {
   final _scrollController = ScrollController();
   late final ChatProvider _chatProvider;
   bool _sending = false;
+  bool _showTypingIndicator = false;
   int _lastMessageCount = 0;
+
+  static const List<_QuickReplyOption> _quickReplies = [
+    _QuickReplyOption(label: 'Track Order', message: 'Track my order delivery status'),
+    _QuickReplyOption(label: 'Return Policy', message: 'What is the return policy?'),
+    _QuickReplyOption(label: 'Product Info', message: 'Tell me more product info and details'),
+  ];
+
+  static const String _returnPolicyMessage =
+      'Our return policy is designed to ensure customer satisfaction while maintaining fairness. '
+      'Customers are allowed to return products within 7 to 14 days after purchase, depending on the item. '
+      'To be eligible for a return, the product must be unused, in its original condition, and include all packaging and receipts.\n\n'
+      'If the product is damaged, defective, or incorrect, customers can request a full refund or exchange. '
+      'However, if the return is due to a change of mind, the item must still meet all return conditions.\n\n'
+      'Refunds will be processed within 3 to 7 business days, and the amount will be returned using the original payment method.\n\n'
+      'Please note that some items, such as personal care products or discounted items, may not be eligible for return.\n\n'
+      'Our goal is to provide a smooth and trustworthy shopping experience for all customers.\n'
+      'Thank you for your attention.';
 
   @override
   void initState() {
@@ -107,6 +125,13 @@ class _ChatScreenState extends State<ChatScreen> {
   String? _buildQuickLocalReply(String message, String userName) {
     final query = message.toLowerCase();
 
+    if ((query.contains('return') && query.contains('policy')) ||
+        _containsWord(query, 'refund') ||
+        _containsWord(query, 'exchange') ||
+        query.contains('change of mind')) {
+      return _returnPolicyMessage;
+    }
+
     if (_containsWord(query, 'delivery') ||
         query.contains('how long') ||
         (query.contains('delivery') && _containsWord(query, 'date'))) {
@@ -115,7 +140,7 @@ class _ChatScreenState extends State<ChatScreen> {
       final endDate = now.add(
         const Duration(days: AppConstants.deliveryLeadDays),
       );
-      return 'Hello $userName! Your order is currently being processed. You can expect delivery between ${_formatDate(startDate)} and ${_formatDate(endDate)}. We\'ll send you a notification as soon as it out for delivery.';
+      return 'Hello $userName! You can expect delivery between ${_formatDate(startDate)} and ${_formatDate(endDate)}. We\'ll send you a notification as soon as it out for delivery.';
     }
 
     if (_containsWord(query, 'hi') || _containsWord(query, 'hello')) {
@@ -216,7 +241,22 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _botReply(String message, String uid, String userName) async {
     final quickReply = _buildQuickLocalReply(message, userName);
     final catalogReply = quickReply == null ? await _buildCatalogReply(message) : null;
-    final reply = quickReply ?? catalogReply ?? await _chatProvider.ask(message);
+    String reply;
+
+    if (quickReply != null || catalogReply != null) {
+      reply = quickReply ?? catalogReply!;
+    } else {
+      if (mounted) {
+        setState(() => _showTypingIndicator = true);
+      }
+      try {
+        reply = await _chatProvider.ask(message);
+      } finally {
+        if (mounted) {
+          setState(() => _showTypingIndicator = false);
+        }
+      }
+    }
 
     await FirebaseFirestore.instance.collection('chat').add({
       'userId': uid,
@@ -225,6 +265,11 @@ class _ChatScreenState extends State<ChatScreen> {
       'text': reply,
       'createdAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  Future<void> _sendQuickReply(String message) async {
+    _controller.text = message;
+    await _sendMessage();
   }
 
   /// SEND MESSAGE
@@ -352,22 +397,26 @@ class _ChatScreenState extends State<ChatScreen> {
                   });
                 }
 
-                return ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: docs.length,
-                  itemBuilder: (context, i) {
-                    final data = docs[i].data() as Map<String, dynamic>;
-                    final sender = (data['sender'] ?? 'user').toString();
-                    final isMe = sender == 'user';
+                      return ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.all(16),
+                        itemCount: docs.length + (_showTypingIndicator ? 1 : 0),
+                        itemBuilder: (context, i) {
+                          if (_showTypingIndicator && i == docs.length) {
+                            return const _TypingIndicatorBubble();
+                          }
 
-                    return _MessageBubble(
-                      userName: data['userName'] ?? 'User',
-                      text: data['text'] ?? '',
-                      isMe: isMe,
-                    );
-                  },
-                );
+                          final data = docs[i].data() as Map<String, dynamic>;
+                          final sender = (data['sender'] ?? 'user').toString();
+                          final isMe = sender == 'user';
+
+                          return _MessageBubble(
+                            userName: data['userName'] ?? 'User',
+                            text: data['text'] ?? '',
+                            isMe: isMe,
+                          );
+                        },
+                      );
               },
             ),
           ),
@@ -376,12 +425,21 @@ class _ChatScreenState extends State<ChatScreen> {
             controller: _controller,
             sending: _sending,
             onSend: _sendMessage,
+                  quickReplies: _quickReplies,
+                  onQuickReplySelected: _sendQuickReply,
           ),
         ],
       ),
     );
   }
 }
+
+      class _QuickReplyOption {
+        final String label;
+        final String message;
+
+        const _QuickReplyOption({required this.label, required this.message});
+      }
 
 class _MessageBubble extends StatelessWidget {
   final String userName;
@@ -442,6 +500,82 @@ class _MessageBubble extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TypingIndicatorBubble extends StatefulWidget {
+  const _TypingIndicatorBubble();
+
+  @override
+  State<_TypingIndicatorBubble> createState() => _TypingIndicatorBubbleState();
+}
+
+class _TypingIndicatorBubbleState extends State<_TypingIndicatorBubble>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF16233A),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(3, (index) {
+                final start = index * 0.18;
+                final end = start + 0.6;
+                final value = _controller.value;
+                final opacity = value < start || value > end
+                    ? 0.35
+                    : 0.35 + ((value - start) / (end - start)) * 0.65;
+                final scale = value < start || value > end
+                    ? 0.85
+                    : 0.85 + ((value - start) / (end - start)) * 0.25;
+
+                return Padding(
+                  padding: EdgeInsets.only(left: index == 0 ? 0 : 6),
+                  child: Transform.scale(
+                    scale: scale,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: opacity),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            );
+          },
         ),
       ),
     );

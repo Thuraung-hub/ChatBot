@@ -134,7 +134,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.w900,
-                                color: AppTheme.dark)),
+                                color: AppTheme.textDark)),
                         const SizedBox(height: 4),
                         const Text('Login to access your account',
                             style: TextStyle(
@@ -144,7 +144,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13,
-                                color: AppTheme.dark)),
+                                color: AppTheme.textDark)),
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: _emailController,
@@ -165,7 +165,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13,
-                                color: AppTheme.dark)),
+                                color: AppTheme.textDark)),
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: _passwordController,

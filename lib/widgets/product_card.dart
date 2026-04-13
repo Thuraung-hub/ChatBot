@@ -49,20 +49,23 @@ class ProductCard extends StatelessWidget {
                       const BorderRadius.vertical(top: Radius.circular(20)),
                   child: AspectRatio(
                     aspectRatio: 1,
-                    child: CachedNetworkImage(
-                      imageUrl: product.imageUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: AppTheme.bgGray,
-                        child: const Center(
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: AppTheme.primary),
+                    child: Hero(
+                      tag: 'product-image-${product.id}',
+                      child: CachedNetworkImage(
+                        imageUrl: product.imageUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          color: AppTheme.bgGray,
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: AppTheme.primary),
+                          ),
                         ),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        color: AppTheme.bgGray,
-                        child: const Icon(Icons.broken_image_outlined,
-                            color: AppTheme.textGray),
+                        errorWidget: (context, url, error) => Container(
+                          color: AppTheme.bgGray,
+                          child: const Icon(Icons.broken_image_outlined,
+                              color: AppTheme.textGray),
+                        ),
                       ),
                     ),
                   ),
@@ -102,7 +105,7 @@ class ProductCard extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
-                      color: AppTheme.primary,
+                      color: Colors.black,
                       letterSpacing: 0.8,
                     ),
                   ),
@@ -112,7 +115,7 @@ class ProductCard extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: AppTheme.dark,
+                      color: Colors.black,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -121,7 +124,7 @@ class ProductCard extends StatelessWidget {
                   Text(
                     product.description,
                     style: const TextStyle(
-                        fontSize: 12, color: AppTheme.textGray, height: 1.4),
+                        fontSize: 12, color: Colors.black, height: 1.4),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -134,7 +137,7 @@ class ProductCard extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w900,
-                          color: AppTheme.dark,
+                          color: Colors.black,
                         ),
                       ),
                       GestureDetector(

@@ -14,14 +14,18 @@ class AdminDashboard extends StatefulWidget {
 
 class _AdminDashboardState extends State<AdminDashboard> {
   final _formKey = GlobalKey<FormState>();
+  final _subAdminFormKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   final _priceCtrl = TextEditingController();
   final _imageCtrl = TextEditingController();
   final _categoryCtrl = TextEditingController();
   final _reviewCtrl = TextEditingController();
+  final _subAdminEmailCtrl = TextEditingController();
+  final _subAdminNameCtrl = TextEditingController();
 
   bool _loading = false;
+  bool _subAdminLoading = false;
   bool _success = false;
   String? _newProductId;
   bool _showSuccessDialog = false;
@@ -34,7 +38,72 @@ class _AdminDashboardState extends State<AdminDashboard> {
     _imageCtrl.dispose();
     _categoryCtrl.dispose();
     _reviewCtrl.dispose();
+    _subAdminEmailCtrl.dispose();
+    _subAdminNameCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleAddSubAdmin() async {
+    if (!(_subAdminFormKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
+    final email = _subAdminEmailCtrl.text.trim().toLowerCase();
+    final name = _subAdminNameCtrl.text.trim();
+
+    setState(() => _subAdminLoading = true);
+
+    try {
+      final users = FirebaseFirestore.instance.collection('users');
+      final snapshot =
+          await users.where('email', isEqualTo: email).limit(1).get();
+
+      if (snapshot.docs.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'User not found. Ask the user to register first, then assign Sub-Admin role.',
+            ),
+            backgroundColor: AppTheme.red,
+          ),
+        );
+        return;
+      }
+
+      final doc = snapshot.docs.first;
+      final updateData = <String, dynamic>{
+        'role': AppConstants.subAdminRole,
+      };
+      if (name.isNotEmpty) {
+        updateData['name'] = name;
+      }
+
+      await users.doc(doc.id).update(updateData);
+
+      _subAdminEmailCtrl.clear();
+      _subAdminNameCtrl.clear();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sub-Admin access granted successfully.'),
+          backgroundColor: AppTheme.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to assign Sub-Admin role: $e'),
+          backgroundColor: AppTheme.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _subAdminLoading = false);
+      }
+    }
   }
 
   Future<void> _handleSubmit() async {
@@ -112,11 +181,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       style: TextStyle(
                           fontSize: 30,
                           fontWeight: FontWeight.w900,
-                          color: AppTheme.textGray)),
+                        color: AppTheme.textDark)),
                   const SizedBox(height: 4),
                   const Text(
                       'Manage your store inventory and add new products.',
-                      style: TextStyle(color: AppTheme.textGray, fontSize: 15)),
+                      style: TextStyle(color: AppTheme.textDark, fontSize: 15)),
                   const SizedBox(height: 28),
 
                   // Form card
@@ -153,7 +222,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 style: TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.w800,
-                                    color: AppTheme.dark)),
+                                    color: AppTheme.textDark)),
                           ],
                         ),
                         const SizedBox(height: 24),
@@ -262,7 +331,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                           style: TextStyle(
                                               fontSize: 9,
                                               fontWeight: FontWeight.w800,
-                                              color: AppTheme.textGray,
+                                            color: AppTheme.textDark,
                                               letterSpacing: 1)),
                                       const SizedBox(height: 4),
                                       Text(
@@ -271,14 +340,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                             : _nameCtrl.text,
                                         style: const TextStyle(
                                             fontWeight: FontWeight.w700,
-                                            color: AppTheme.dark),
+                                          color: AppTheme.textDark),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                       Text(
                                         '\$${_priceCtrl.text.isEmpty ? '0.00' : _priceCtrl.text}',
                                         style: const TextStyle(
-                                            color: AppTheme.primary,
+                                          color: AppTheme.textDark,
                                             fontWeight: FontWeight.w900,
                                             fontSize: 16),
                                       ),
@@ -335,6 +404,112 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   const SizedBox(height: 20),
 
                   Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: AppTheme.borderGray),
+                    ),
+                    padding: const EdgeInsets.all(24),
+                    child: Form(
+                      key: _subAdminFormKey,
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryLight,
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: const Icon(
+                                  Icons.admin_panel_settings_outlined,
+                                  color: AppTheme.primary,
+                                  size: 22,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'Add Sub-Admin',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.textDark,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Sub-admin users have the same permissions as admins.',
+                            style: TextStyle(
+                              color: AppTheme.textDark,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          _FormField(
+                            controller: _subAdminEmailCtrl,
+                            label: 'User Email *',
+                            hint: 'user@example.com',
+                            icon: Icons.mail_outline_rounded,
+                            keyboardType: TextInputType.emailAddress,
+                            validator: AppValidators.email,
+                          ),
+                          const SizedBox(height: 14),
+                          _FormField(
+                            controller: _subAdminNameCtrl,
+                            label: 'Display Name (Optional)',
+                            hint: 'Name in profile',
+                            icon: Icons.person_outline_rounded,
+                            validator: (value) {
+                              if ((value ?? '').trim().isEmpty) return null;
+                              return AppValidators.name(value);
+                            },
+                          ),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed:
+                                  _subAdminLoading ? null : _handleAddSubAdmin,
+                              icon: _subAdminLoading
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2.5,
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.admin_panel_settings_outlined,
+                                    ),
+                              label: Text(
+                                _subAdminLoading
+                                    ? 'Granting Access...'
+                                    : 'Grant Sub-Admin Access',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 18),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
@@ -346,7 +521,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       children: [
                         const Text('Quick Tips',
                             style: TextStyle(
-                                color: Colors.white,
+                            color: AppTheme.textDark,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800)),
                         const SizedBox(height: 16),
@@ -372,7 +547,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                   Expanded(
                                     child: Text(tip,
                                         style: const TextStyle(
-                                            color: Color(0xFFc7d2fe),
+                                        color: AppTheme.textDark,
                                             fontSize: 13,
                                             height: 1.5)),
                                   ),
@@ -439,7 +614,7 @@ class _FormField extends StatelessWidget {
             style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.dark)),
+            color: AppTheme.textDark)),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
@@ -508,13 +683,13 @@ class _SuccessDialog extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w900,
-                      color: AppTheme.dark)),
+                    color: AppTheme.textDark)),
               const SizedBox(height: 8),
               const Text(
                 'Your new item is now live on the store for all customers.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    color: AppTheme.textGray, fontSize: 14, height: 1.5),
+                  color: AppTheme.textDark, fontSize: 14, height: 1.5),
               ),
               const SizedBox(height: 28),
               SizedBox(
@@ -531,7 +706,7 @@ class _SuccessDialog extends StatelessWidget {
                   onPressed: onAddAnother,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.bgGray,
-                    foregroundColor: AppTheme.dark,
+                    foregroundColor: AppTheme.textDark,
                   ),
                   child: const Text('Add Another'),
                 ),
@@ -540,7 +715,7 @@ class _SuccessDialog extends StatelessWidget {
               TextButton(
                 onPressed: onBackHome,
                 child: const Text('Back to Home',
-                    style: TextStyle(color: AppTheme.textGray, fontSize: 13)),
+                  style: TextStyle(color: AppTheme.textDark, fontSize: 13)),
               ),
             ],
           ),

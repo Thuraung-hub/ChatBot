@@ -6,9 +6,14 @@ import '../services/auth_service.dart';
 import '../widgets/app_action_button.dart';
 import 'buy_item_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _handleLogout(BuildContext context, AuthService auth) async {
     await auth.signOut();
     if (context.mounted) {
@@ -29,7 +34,9 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
     final profile = auth.profile;
-    final isAdmin = auth.isAdmin;
+    final roleLabel = profile?.role == AppConstants.subAdminRole
+        ? 'Sub-Admin'
+        : (profile?.role == AppConstants.adminRole ? 'Admin' : 'Customer');
 
     if (profile == null) return const SizedBox.shrink();
 
@@ -131,7 +138,15 @@ class ProfileScreen extends StatelessWidget {
                   _InfoTile(
                     icon: Icons.shield_outlined,
                     label: 'Role',
-                    value: isAdmin ? 'Admin' : 'Customer',
+                    value: roleLabel,
+                  ),
+                  const SizedBox(height: 12),
+                  AppActionButton(
+                    label: 'Settings',
+                    icon: Icons.settings_outlined,
+                    onPressed: () => _openSettingsScreen(context, auth),
+                    backgroundColor: AppTheme.primaryLight,
+                    foregroundColor: AppTheme.primary,
                   ),
                   const SizedBox(height: 18),
                   AppActionButton(
@@ -148,26 +163,6 @@ class ProfileScreen extends StatelessWidget {
                     onPressed: () => _handleLogout(context, auth),
                     backgroundColor: AppTheme.redLight,
                     foregroundColor: AppTheme.red,
-                  ),
-                  const SizedBox(height: 12),
-                  AppActionButton(
-                    label: 'Delete Account',
-                    icon: Icons.delete_forever_rounded,
-                    onPressed: auth.processing
-                        ? null
-                        : () => _confirmDeleteAccount(context, auth),
-                    backgroundColor: AppTheme.red,
-                    foregroundColor: Colors.white,
-                  ),
-                  const SizedBox(height: 12),
-                  AppActionButton(
-                    label: 'Delete My Data',
-                    icon: Icons.delete_forever_rounded,
-                    onPressed: auth.processing
-                        ? null
-                        : () => _confirmDeleteMyData(context, auth),
-                    backgroundColor: AppTheme.red,
-                    foregroundColor: Colors.white,
                   ),
                   const SizedBox(height: 24),
                 ],
@@ -264,6 +259,77 @@ class ProfileScreen extends StatelessWidget {
         SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
       );
     }
+  }
+
+  void _openSettingsScreen(BuildContext context, AuthService auth) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _ProfileSettingsScreen(
+          auth: auth,
+          onDeleteAccount: () => _confirmDeleteAccount(context, auth),
+          onDeleteMyData: () => _confirmDeleteMyData(context, auth),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileSettingsScreen extends StatelessWidget {
+  final AuthService auth;
+  final VoidCallback onDeleteAccount;
+  final VoidCallback onDeleteMyData;
+
+  const _ProfileSettingsScreen({
+    required this.auth,
+    required this.onDeleteAccount,
+    required this.onDeleteMyData,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Settings'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Danger Zone',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: Colors.grey.shade400,
+                letterSpacing: 1.4,
+              ),
+            ),
+            const SizedBox(height: 12),
+            AppActionButton(
+              label: 'Delete Account',
+              icon: Icons.delete_forever_rounded,
+              onPressed: auth.processing ? null : onDeleteAccount,
+              backgroundColor: AppTheme.red,
+              foregroundColor: Colors.white,
+            ),
+            const SizedBox(height: 12),
+            AppActionButton(
+              label: 'Delete My Data',
+              icon: Icons.delete_sweep_outlined,
+              onPressed: auth.processing ? null : onDeleteMyData,
+              backgroundColor: AppTheme.redLight,
+              foregroundColor: AppTheme.red,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
