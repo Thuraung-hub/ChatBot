@@ -110,6 +110,74 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }
   }
 
+  Future<void> _handleRemoveSubAdmin() async {
+    if (!(_subAdminFormKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
+    final email = _subAdminEmailCtrl.text.trim().toLowerCase();
+
+    setState(() => _subAdminLoading = true);
+
+    try {
+      final users = FirebaseFirestore.instance.collection('users');
+      final snapshot =
+          await users.where('email', isEqualTo: email).limit(1).get();
+
+      if (snapshot.docs.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('User not found.'),
+            backgroundColor: AppTheme.red,
+          ),
+        );
+        return;
+      }
+
+      final doc = snapshot.docs.first;
+      final currentRole = (doc.data()['role'] ?? AppConstants.customerRole)
+          .toString()
+          .trim();
+
+      if (currentRole != AppConstants.subAdminRole) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('This user is not a Sub-Admin.'),
+            backgroundColor: AppTheme.red,
+          ),
+        );
+        return;
+      }
+
+      await users.doc(doc.id).update({'role': AppConstants.customerRole});
+
+      _subAdminEmailCtrl.clear();
+      _subAdminNameCtrl.clear();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sub-Admin access removed successfully.'),
+          backgroundColor: AppTheme.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to remove Sub-Admin role: $e'),
+          backgroundColor: AppTheme.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _subAdminLoading = false);
+      }
+    }
+  }
+
   Future<void> _handleSubmit() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
@@ -524,6 +592,39 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 style: ElevatedButton.styleFrom(
                                   padding:
                                       const EdgeInsets.symmetric(vertical: 18),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          RbacVisibility(
+                            isAdmin: isAdmin,
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: _subAdminLoading
+                                    ? null
+                                    : _handleRemoveSubAdmin,
+                                icon: const Icon(
+                                  Icons.person_remove_alt_1_outlined,
+                                  color: AppTheme.red,
+                                ),
+                                label: const Text(
+                                  'Remove Sub-Admin',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.red,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  side:
+                                      const BorderSide(color: AppTheme.red),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
                                 ),
                               ),
                             ),
