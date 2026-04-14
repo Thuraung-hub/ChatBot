@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../services/chat_fallback_handler.dart';
 import '../services/gemini_client.dart';
@@ -10,9 +11,11 @@ class ChatProvider extends ChangeNotifier {
       : _geminiClient = geminiClient;
 
   bool _loading = false;
+  bool _clearing = false;
   String? _lastReply;
 
   bool get loading => _loading;
+  bool get clearing => _clearing;
   String? get lastReply => _lastReply;
 
   Future<String> ask(String query) async {
@@ -37,6 +40,33 @@ class ChatProvider extends ChangeNotifier {
       return fallbackReply;
     } finally {
       _loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> clearChatHistory(String uid) async {
+    if (uid.isEmpty) return;
+
+    _clearing = true;
+    notifyListeners();
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('chat')
+          .where('userId', isEqualTo: uid)
+          .get();
+
+      final batch = FirebaseFirestore.instance.batch();
+      for (final doc in snapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      await batch.commit();
+      _lastReply = null;
+    } catch (e) {
+      rethrow;
+    } finally {
+      _clearing = false;
       notifyListeners();
     }
   }

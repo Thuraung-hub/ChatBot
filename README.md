@@ -133,7 +133,29 @@ flutter run
 
 ## Firestore Rules
 
-Copy the `firestore.rules` from the original React project — the data structure is identical.
+Project-level Firebase rules are now included:
+- `firestore.rules`
+- `storage.rules`
+
+Deploy them with:
+
+```bash
+firebase deploy --only firestore:rules,storage
+```
+
+These rules lock user data to owners/admins and restrict bill-slip uploads to authenticated owners with image-only uploads.
+
+## Web QA Recommendation
+
+When validating upload and checkout behavior in browser, prefer release/profile-like runs over debug mode:
+
+```bash
+flutter run -d chrome --profile
+# or
+flutter build web --release
+```
+
+Debug mode is slower and can make Firebase upload flows appear stalled even when logic is correct.
 
 ---
 

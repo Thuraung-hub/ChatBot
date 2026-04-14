@@ -1,0 +1,32 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function validImageUpload(maxBytes) {
+      return request.resource != null &&
+        request.resource.size < maxBytes &&
+        request.resource.contentType.matches('image/.*');
+    }
+
+    match /bill_slips/{userId}/{orderId}/{fileName} {
+      allow write: if isOwner(userId) && validImageUpload(5 * 1024 * 1024);
+      allow read: if isOwner(userId);
+    }
+
+    match /quick_checkout_bill_slips/{userId}/{fileName} {
+      allow write: if isOwner(userId) && validImageUpload(5 * 1024 * 1024);
+      allow read: if isOwner(userId);
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

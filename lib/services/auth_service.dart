@@ -20,6 +20,7 @@ class AuthService extends ChangeNotifier {
   bool _loading = true;
   bool _processing = false;
   String? _errorMessage;
+  bool _googleSignInInitialized = false;
 
   User? get user => _user;
   UserProfile? get profile => _profile;
@@ -206,14 +207,14 @@ class AuthService extends ChangeNotifier {
         final googleProvider = GoogleAuthProvider();
         cred = await _auth.signInWithPopup(googleProvider);
       } else {
-        final googleUser = await GoogleSignIn().signIn();
-        if (googleUser == null) {
-          return;
-        }
+        final googleSignIn = await _getGoogleSignIn();
+        final googleUser = await googleSignIn.authenticate();
 
-        final googleAuth = await googleUser.authentication;
+        final googleAuth = googleUser.authentication;
+        final authz = await googleUser.authorizationClient
+            .authorizationForScopes(<String>['email', 'profile']);
         final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
+          accessToken: authz?.accessToken,
           idToken: googleAuth.idToken,
         );
         cred = await _auth.signInWithCredential(credential);
@@ -250,6 +251,15 @@ class AuthService extends ChangeNotifier {
       return uri;
     }
     return uri.replace(scheme: 'https');
+  }
+
+  Future<GoogleSignIn> _getGoogleSignIn() async {
+    final googleSignIn = GoogleSignIn.instance;
+    if (!_googleSignInInitialized) {
+      await googleSignIn.initialize();
+      _googleSignInInitialized = true;
+    }
+    return googleSignIn;
   }
 
   Future<void> _registerWithBackend({
@@ -313,7 +323,8 @@ class AuthService extends ChangeNotifier {
     await SecureStorageService.clearAuthToken();
 
     try {
-      await GoogleSignIn().signOut();
+      final googleSignIn = await _getGoogleSignIn();
+      await googleSignIn.signOut();
     } catch (_) {}
   }
 
@@ -363,7 +374,8 @@ class AuthService extends ChangeNotifier {
       }
 
       await SecureStorageService.clearAuthToken();
-      await GoogleSignIn().signOut();
+      final googleSignIn = await _getGoogleSignIn();
+      await googleSignIn.signOut();
       await _auth.signOut();
 
       _user = null;

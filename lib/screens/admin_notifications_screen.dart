@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
@@ -40,6 +41,72 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
     return result.isEmpty ? fallback : result;
   }
 
+  Future<void> _clearAllNotifications() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Clear All Notifications'),
+        content: const Text(
+          'Are you sure you want to delete all notifications?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text(
+              'Delete All',
+              style: TextStyle(color: Colors.redAccent),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection(AppConstants.adminNotificationsCollection)
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No notifications to clear.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
+      final batch = FirebaseFirestore.instance.batch();
+      for (final doc in snapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('All notifications cleared.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to clear notifications: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -49,6 +116,13 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_sweep_rounded),
+            tooltip: 'Clear all notifications',
+            onPressed: _clearAllNotifications,
+          ),
+        ],
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
@@ -95,109 +169,203 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
               final status = _text(data['status']).toUpperCase();
               final price = _text(data['productPrice']);
               final createdAt = _text(data['createdAt']);
+              final billSlipUrl = _text(data['billSlipUrl'], fallback: '');
 
-              return InkWell(
-                borderRadius: BorderRadius.circular(20),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AdminOrderDetailScreen(
-                        notificationId: notificationId,
-                        customerName: customerName,
-                        customerEmail: customerEmail,
-                        productName: productName,
-                        productPrice: price,
-                        productImageUrl: _text(data['productImageUrl']),
-                        orderedAt: _text(data['orderedAt']),
-                        deliveryDate: _text(data['deliveryDate']),
-                        status: status,
-                        customerId: _text(data['customerId']),
+              return Dismissible(
+                key: Key(notificationId),
+                background: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  child: const Icon(Icons.delete_rounded, color: Colors.white),
+                ),
+                direction: DismissDirection.endToStart,
+                confirmDismiss: (_) async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (dialogContext) => AlertDialog(
+                      title: const Text('Delete Notification'),
+                      content: const Text(
+                        'Are you sure you want to clear this notification?',
                       ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogContext, false),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogContext, true),
+                          child: const Text(
+                            'Delete',
+                            style: TextStyle(color: Colors.redAccent),
+                          ),
+                        ),
+                      ],
                     ),
                   );
+                  return confirmed == true;
                 },
-                child: Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppTheme.borderGray),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 18,
-                        offset: const Offset(0, 6),
+                onDismissed: (_) async {
+                  try {
+                    await FirebaseFirestore.instance
+                        .collection(AppConstants.adminNotificationsCollection)
+                        .doc(notificationId)
+                        .delete();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Notification cleared'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Failed to clear notification: $e'),
+                          backgroundColor: Colors.redAccent,
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AdminOrderDetailScreen(
+                          notificationId: notificationId,
+                          customerName: customerName,
+                          customerEmail: customerEmail,
+                          productName: productName,
+                          productPrice: price,
+                          productImageUrl: _text(data['productImageUrl']),
+                          orderedAt: _text(data['orderedAt']),
+                          deliveryDate: _text(data['deliveryDate']),
+                          status: status,
+                          customerId: _text(data['customerId']),
+                        ),
                       ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryLight,
-                              borderRadius: BorderRadius.circular(14),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppTheme.borderGray),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 18,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryLight,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(
+                                Icons.shopping_bag_outlined,
+                                color: AppTheme.primary,
+                              ),
                             ),
-                            child: const Icon(
-                              Icons.shopping_bag_outlined,
-                              color: AppTheme.primary,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    productName,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppTheme.textDark,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Customer order received',
+                                    style: TextStyle(
+                                      color: AppTheme.textGray,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.green.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                status,
+                                style: const TextStyle(
+                                  color: AppTheme.green,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _InfoRow(label: 'Customer', value: customerName),
+                        _InfoRow(label: 'Email', value: customerEmail),
+                        _InfoRow(label: 'Item', value: productName),
+                        _InfoRow(label: 'Price', value: '\$$price'),
+                        _InfoRow(label: 'Created At', value: createdAt),
+                        if (billSlipUrl.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Bill Slip',
+                            style: TextStyle(
+                              color: AppTheme.textGray,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  productName,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppTheme.textDark,
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: CachedNetworkImage(
+                              imageUrl: billSlipUrl,
+                              height: 120,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorWidget: (_, __, ___) => Container(
+                                height: 120,
+                                color: AppTheme.bgGray,
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.image_not_supported_outlined,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
-                                const Text(
-                                  'Customer order received',
-                                  style: TextStyle(
-                                    color: AppTheme.textGray,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppTheme.green.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              status,
-                              style: const TextStyle(
-                                color: AppTheme.green,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 11,
                               ),
                             ),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 16),
-                      _InfoRow(label: 'Customer', value: customerName),
-                      _InfoRow(label: 'Email', value: customerEmail),
-                      _InfoRow(label: 'Item', value: productName),
-                      _InfoRow(label: 'Price', value: '\$$price'),
-                      _InfoRow(label: 'Created At', value: createdAt),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               );

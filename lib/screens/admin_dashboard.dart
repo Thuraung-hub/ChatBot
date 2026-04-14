@@ -7,6 +7,7 @@ import '../config/app_validators.dart';
 import '../app_theme.dart';
 import '../services/auth_service.dart';
 import '../widgets/rbac_visibility.dart';
+import '../widgets/app_dialogs.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -68,6 +69,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     final email = _subAdminEmailCtrl.text.trim().toLowerCase();
     final name = _subAdminNameCtrl.text.trim();
+
+    // Show confirmation dialog before granting admin access
+    final confirmed = await AppDialog.showConfirmationDialog(
+      context,
+      title: 'Grant Admin Access',
+      message: 'Are you sure you want to grant Admin access to $email?',
+      confirmLabel: 'Grant Access',
+      cancelLabel: 'Cancel',
+      isDestructive: false,
+    );
+
+    if (confirmed != true || !mounted) return;
 
     setState(() => _subAdminLoading = true);
 

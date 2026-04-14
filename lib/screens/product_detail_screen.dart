@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:async';
+import 'dart:typed_data';
 import '../config/app_constants.dart';
 import '../config/app_validators.dart';
 import '../app_theme.dart';
@@ -29,12 +33,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   void dispose() {
     _commentController.dispose();
     super.dispose();
-  }
-
-  String _formatDate(DateTime date) {
-    final month = date.month.toString().padLeft(2, '0');
-    final day = date.day.toString().padLeft(2, '0');
-    return '$day/$month/${date.year}';
   }
 
   Future<bool> _addToCart(BuildContext context, Product product,
@@ -120,14 +118,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       return;
     }
 
-    final trace = await MonitoringService.startTrace('product_buy_now');
     try {
       setState(() => _buyingNow = true);
-      await Future.delayed(const Duration(
-          milliseconds: AppConstants.quickCheckoutDelayMilliseconds));
-      if (!context.mounted) return;
+      await Future<void>.delayed(Duration.zero);
+      if (!mounted) return;
       setState(() => _buyingNow = false);
-
+      if (!context.mounted) return;
       await _showBuyNowDialog(context, product, auth.user!.uid);
     } catch (error, stackTrace) {
       await MonitoringService.captureException(
@@ -148,12 +144,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         ),
       );
     } finally {
-      await MonitoringService.stopTrace(trace);
+      if (mounted) {
+        setState(() => _buyingNow = false);
+      }
     }
   }
 
-  Future<void> _completePurchase(
-      BuildContext context, String uid, Product product) async {
+    Future<void> _completePurchase(
+      BuildContext context, String uid, Product product,
+      {String? billSlipUrl}) async {
     final now = DateTime.now();
     final deliveryDate =
         now.add(const Duration(days: AppConstants.deliveryLeadDays));
@@ -171,6 +170,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       'orderedAt': now.toIso8601String(),
       'deliveryDate': deliveryDate.toIso8601String(),
       'status': AppConstants.processingOrderStatus,
+      'billSlipUrl': billSlipUrl,
     };
 
     await FirebaseFirestore.instance.collection('users/$uid/orders').add(orderData);
@@ -204,76 +204,24 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       const Duration(days: AppConstants.deliveryLeadDays),
     );
 
-    await showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Quick Checkout',
-          style: TextStyle(fontWeight: FontWeight.w900),
+    await Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => _QuickCheckoutPage(
+          product: product,
+          uid: uid,
+          startDate: startDate,
+          endDate: endDate,
+          onComplete: (billSlipUrl) async {
+            if (!mounted || !context.mounted) return;
+            await _completePurchase(
+              context,
+              uid,
+              product,
+              billSlipUrl: billSlipUrl,
+            );
+          },
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              product.name,
-              style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                color: AppTheme.dark,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Total: \$${product.price.toStringAsFixed(2)}',
-              style: const TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: 18,
-                color: AppTheme.royalBlue,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Proceed with payment for this item now?',
-              style: TextStyle(color: AppTheme.textGray),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Estimated delivery: ${_formatDate(startDate)} - ${_formatDate(endDate)}',
-              style: const TextStyle(
-                color: AppTheme.textGray,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              try {
-                await _completePurchase(context, uid, product);
-              } catch (_) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Payment failed. Please try again.'),
-                    backgroundColor: AppTheme.red,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                );
-              }
-            },
-            child: const Text('Pay Now'),
-          ),
-        ],
       ),
     );
   }
@@ -775,6 +723,331 @@ class _Badge extends StatelessWidget {
               style: TextStyle(
                   fontSize: 11, fontWeight: FontWeight.w600, color: color)),
         ],
+      ),
+    );
+  }
+}
+
+class _QuickCheckoutPage extends StatefulWidget {
+  final Product product;
+  final String uid;
+  final DateTime startDate;
+  final DateTime endDate;
+  final Future<void> Function(String? billSlipUrl) onComplete;
+
+  const _QuickCheckoutPage({
+    required this.product,
+    required this.uid,
+    required this.startDate,
+    required this.endDate,
+    required this.onComplete,
+  });
+
+  @override
+  State<_QuickCheckoutPage> createState() => _QuickCheckoutPageState();
+}
+
+class _QuickCheckoutPageState extends State<_QuickCheckoutPage> {
+  Uint8List? _billSlipBytes;
+  bool _submitting = false;
+  double? _uploadProgress;
+  String _loadingText = 'Processing payment...';
+
+  String _formatDate(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '$day/$month/${date.year}';
+  }
+
+  Future<void> _pickBillSlip(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final image = await picker.pickImage(
+        source: source,
+        imageQuality: 45,
+        maxWidth: 800,
+        maxHeight: 800,
+      );
+      if (image == null) return;
+      final bytes = await image.readAsBytes();
+      if (bytes.lengthInBytes > 1024 * 1024) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Image is too large. Please choose a smaller image.'),
+            backgroundColor: AppTheme.red,
+          ),
+        );
+        return;
+      }
+      if (!mounted) return;
+      setState(() => _billSlipBytes = bytes);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to pick image. Please try again.'),
+          backgroundColor: AppTheme.red,
+        ),
+      );
+    }
+  }
+
+  Future<String?> _uploadBillSlip(Uint8List bytes) async {
+    final fileName =
+        'quick_checkout_bill_slips/${widget.uid}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final ref = FirebaseStorage.instance.ref(fileName);
+    final task = ref.putData(
+      bytes,
+      SettableMetadata(contentType: 'image/jpeg'),
+    );
+
+    task.snapshotEvents.listen((snapshot) {
+      if (!mounted) return;
+      final total = snapshot.totalBytes;
+      if (total <= 0) return;
+      setState(() {
+        _uploadProgress = snapshot.bytesTransferred / total;
+      });
+    });
+
+    try {
+      await task.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () async {
+          await task.cancel();
+          throw TimeoutException('Bill slip upload timed out.');
+        },
+      );
+      return ref.getDownloadURL();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _payNow() async {
+    if (_submitting) return;
+    final messenger = ScaffoldMessenger.of(context);
+
+    setState(() {
+      _submitting = true;
+      _uploadProgress = null;
+      _loadingText = _billSlipBytes != null
+          ? 'Uploading bill slip...'
+          : 'Processing payment...';
+    });
+    try {
+      String? billSlipUrl;
+      if (_billSlipBytes != null) {
+        billSlipUrl = await _uploadBillSlip(_billSlipBytes!);
+        if (billSlipUrl == null) {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Bill slip upload is slow. Checkout continued without slip.',
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _uploadProgress = null;
+          _loadingText = 'Finalizing order...';
+        });
+      }
+      await widget.onComplete(billSlipUrl);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+    } catch (_) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Payment failed. Please try again.'),
+          backgroundColor: AppTheme.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+          _uploadProgress = null;
+          _loadingText = 'Processing payment...';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0B1020),
+      appBar: AppBar(
+        title: const Text('Quick Checkout'),
+        leading: IconButton(
+          icon: const Icon(Icons.close_rounded),
+          onPressed: _submitting ? null : () => Navigator.pop(context),
+        ),
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            Text(
+              widget.product.name,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                fontSize: 24,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Total: \$${widget.product.price.toStringAsFixed(2)}',
+              style: const TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 20,
+                color: AppTheme.primary,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Estimated delivery: ${_formatDate(widget.startDate)} - ${_formatDate(widget.endDate)}',
+              style: const TextStyle(
+                color: Color(0xFFB6C2D9),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF121826),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFF27324A)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Upload Payment Bill Slip (Optional)',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  if (_billSlipBytes != null)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.memory(
+                        _billSlipBytes!,
+                        height: 180,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  if (_billSlipBytes != null) const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Color(0xFF2A3550)),
+                          ),
+                          onPressed: () => _pickBillSlip(ImageSource.camera),
+                          icon: const Icon(Icons.camera_alt_outlined),
+                          label: const Text('Camera'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Color(0xFF2A3550)),
+                          ),
+                          onPressed: () => _pickBillSlip(ImageSource.gallery),
+                          icon: const Icon(Icons.photo_library_outlined),
+                          label: const Text('Gallery'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Admin can review this slip for payment verification.',
+                    style: TextStyle(color: Color(0xFFB6C2D9), fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            if (_submitting) ...[
+              const SizedBox(height: 16),
+              Text(
+                _uploadProgress != null
+                    ? 'Uploading slip: ${(_uploadProgress! * 100).clamp(0, 100).toStringAsFixed(0)}%'
+                    : _loadingText,
+                style: const TextStyle(
+                  color: Color(0xFFB6C2D9),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: _uploadProgress,
+                minHeight: 8,
+                backgroundColor: const Color(0xFF27324A),
+                color: AppTheme.primary,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ],
+          ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              foregroundColor: AppTheme.dark,
+              disabledBackgroundColor: AppTheme.primary.withValues(alpha: 0.85),
+              disabledForegroundColor: AppTheme.dark,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+            onPressed: _submitting ? null : _payNow,
+            child: _submitting
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(AppTheme.dark),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        _uploadProgress != null
+                            ? 'Uploading...'
+                            : 'Processing...',
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ],
+                  )
+                : const Text(
+                    'Pay Now',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+          ),
+        ),
       ),
     );
   }

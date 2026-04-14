@@ -14,6 +14,7 @@ class AuthProvider extends ChangeNotifier {
   User? _user;
   UserProfile? _profile;
   bool _loading = true;
+  bool _googleSignInInitialized = false;
 
   User? get user => _user;
   UserProfile? get profile => _profile;
@@ -140,6 +141,15 @@ class AuthProvider extends ChangeNotifier {
   // GOOGLE LOGIN (WEB + MOBILE)
   // =============================
 
+  Future<GoogleSignIn> _getGoogleSignIn() async {
+    final googleSignIn = GoogleSignIn.instance;
+    if (!_googleSignInInitialized) {
+      await googleSignIn.initialize();
+      _googleSignInInitialized = true;
+    }
+    return googleSignIn;
+  }
+
   Future<void> signInWithGoogle() async {
 
     try {
@@ -157,17 +167,17 @@ class AuthProvider extends ChangeNotifier {
 
       // ---------- MOBILE ----------
       else {
-
-        final GoogleSignInAccount? googleUser =
-            await GoogleSignIn().signIn();
-
-        if (googleUser == null) return;
+        final googleSignIn = await _getGoogleSignIn();
+        final GoogleSignInAccount googleUser =
+          await googleSignIn.authenticate();
 
         final GoogleSignInAuthentication googleAuth =
-            await googleUser.authentication;
+          googleUser.authentication;
+        final authz = await googleUser.authorizationClient
+          .authorizationForScopes(<String>['email', 'profile']);
 
         final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
+          accessToken: authz?.accessToken,
           idToken: googleAuth.idToken,
         );
 
@@ -239,7 +249,8 @@ class AuthProvider extends ChangeNotifier {
     }
 
     try {
-      await GoogleSignIn().signOut();
+      final googleSignIn = await _getGoogleSignIn();
+      await googleSignIn.signOut();
     } catch (_) {}
 
   }

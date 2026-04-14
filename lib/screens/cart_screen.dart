@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:async';
+import 'dart:typed_data';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../config/app_constants.dart';
 import '../app_theme.dart';
 import '../models/cart_item.dart';
@@ -224,7 +228,7 @@ class _QtyBtn extends StatelessWidget {
   }
 }
 
-class _OrderSummary extends StatelessWidget {
+class _OrderSummary extends StatefulWidget {
   final double total;
   final String uid;
   final List<CartItem> items;
@@ -232,19 +236,208 @@ class _OrderSummary extends StatelessWidget {
   const _OrderSummary(
       {required this.total, required this.uid, required this.items});
 
+  @override
+  State<_OrderSummary> createState() => _OrderSummaryState();
+}
+
+class _OrderSummaryState extends State<_OrderSummary> {
+  XFile? _billSlipImage;
+  Uint8List? _billSlipBytes;
+  bool _uploading = false;
+
+  Future<void> _pickBillSlip() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 45,
+        maxWidth: 800,
+        maxHeight: 800,
+      );
+
+      if (image != null) {
+        final bytes = await image.readAsBytes();
+        if (bytes.lengthInBytes > 1024 * 1024) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Image is too large. Please choose a smaller image.'),
+              backgroundColor: AppTheme.red,
+            ),
+          );
+          return;
+        }
+        setState(() {
+          _billSlipImage = image;
+          _billSlipBytes = bytes;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick image: $e'),
+            backgroundColor: AppTheme.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<String?> _uploadBillSlip(String orderId) async {
+    if (_billSlipBytes == null) return null;
+
+    try {
+      final fileName =
+          'bill_slips/${widget.uid}/$orderId/${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final ref = FirebaseStorage.instance.ref(fileName);
+      final task = ref.putData(
+        _billSlipBytes!,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+
+      await task.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () async {
+          await task.cancel();
+          throw TimeoutException('Bill slip upload timed out.');
+        },
+      );
+      return await ref.getDownloadURL();
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> _checkoutNow(BuildContext context) async {
-    if (items.isEmpty) return;
+    if (widget.items.isEmpty) return;
+
+    // Show checkout dialog with bill slip option
+    if (!context.mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF121826),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Complete Your Order',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Upload Payment Bill Slip (Optional)',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 12),
+              _billSlipImage != null
+                  ? Column(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.memory(
+                            _billSlipBytes!,
+                            height: 150,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.edit),
+                          label: const Text('Change Image'),
+                          onPressed: _pickBillSlip,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primary,
+                            foregroundColor: AppTheme.dark,
+                            minimumSize: const Size(double.infinity, 40),
+                          ),
+                        ),
+                      ],
+                    )
+                  : ElevatedButton.icon(
+                      icon: const Icon(Icons.image),
+                      label: const Text('Upload Bill Slip'),
+                      onPressed: _pickBillSlip,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        foregroundColor: AppTheme.dark,
+                        minimumSize: const Size(double.infinity, 50),
+                      ),
+                    ),
+              const SizedBox(height: 16),
+              const Text(
+                'Note: You can upload a payment bill slip to expedite verification. This is optional.',
+                style: TextStyle(
+                  color: Color(0xFF9AA4B2),
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF9AA4B2)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              foregroundColor: AppTheme.dark,
+            ),
+            child: const Text('Confirm Order'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
     final trace = await MonitoringService.startTrace('cart_checkout_now');
     try {
+      setState(() => _uploading = true);
+
       final now = DateTime.now();
       final deliveryDate =
           now.add(const Duration(days: AppConstants.deliveryLeadDays));
       final db = FirebaseFirestore.instance;
       final batch = db.batch();
 
-      for (final item in items) {
-        final orderRef = db.collection('users/$uid/orders').doc();
-        final cartRef = db.collection('users/$uid/cart').doc(item.id);
+      for (final item in widget.items) {
+        final orderRef = db.collection('users/${widget.uid}/orders').doc();
+        final orderId = orderRef.id;
+        final cartRef = db.collection('users/${widget.uid}/cart').doc(item.id);
+
+        // Upload bill slip if provided
+        String? billSlipUrl;
+        if (_billSlipImage != null) {
+          billSlipUrl = await _uploadBillSlip(orderId);
+          if (billSlipUrl == null && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Bill slip upload is slow. Checkout continued without slip.',
+                ),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
 
         batch.set(orderRef, {
           'productId': item.productId,
@@ -255,6 +448,8 @@ class _OrderSummary extends StatelessWidget {
           'orderedAt': now.toIso8601String(),
           'deliveryDate': deliveryDate.toIso8601String(),
           'status': AppConstants.processingOrderStatus,
+          'billSlipUrl': billSlipUrl,
+          'customerId': widget.uid,
         });
         batch.delete(cartRef);
       }
@@ -265,7 +460,7 @@ class _OrderSummary extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Checkout successful! ${items.length} item(s) ordered.',
+            'Checkout successful! ${widget.items.length} item(s) ordered.',
           ),
           backgroundColor: AppTheme.green,
           behavior: SnackBarBehavior.floating,
@@ -274,6 +469,12 @@ class _OrderSummary extends StatelessWidget {
           ),
         ),
       );
+
+      // Clear bill slip after successful checkout
+      setState(() {
+        _billSlipImage = null;
+        _billSlipBytes = null;
+      });
     } catch (error, stackTrace) {
       await MonitoringService.captureException(
         error,
@@ -293,6 +494,9 @@ class _OrderSummary extends StatelessWidget {
       );
     } finally {
       await MonitoringService.stopTrace(trace);
+      if (mounted) {
+        setState(() => _uploading = false);
+      }
     }
   }
 
@@ -348,7 +552,7 @@ class _OrderSummary extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 18),
-            _Row('Subtotal', '\$${total.toStringAsFixed(2)}'),
+            _Row('Subtotal', '\$${widget.total.toStringAsFixed(2)}'),
             const SizedBox(height: 8),
             const _Row('Shipping', 'Free', valueColor: AppTheme.green),
             const SizedBox(height: 8),
@@ -365,7 +569,7 @@ class _OrderSummary extends StatelessWidget {
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
                         color: AppTheme.dark)),
-                Text('\$${total.toStringAsFixed(2)}',
+                Text('\$${widget.total.toStringAsFixed(2)}',
                     style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w900,
@@ -376,14 +580,24 @@ class _OrderSummary extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () => _checkoutNow(context),
+                onPressed: _uploading ? null : () => _checkoutNow(context),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.dark,
+                  backgroundColor: _uploading ? Colors.grey : AppTheme.dark,
                   padding: const EdgeInsets.symmetric(vertical: 18),
                 ),
-                child: const Text('Checkout Now',
-                    style:
-                        TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+                child: _uploading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text('Checkout Now',
+                        style: TextStyle(
+                            fontSize: 17, fontWeight: FontWeight.w900)),
               ),
             ),
             const SizedBox(height: 12),

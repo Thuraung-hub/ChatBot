@@ -116,6 +116,68 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Future<void> _showClearChatDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF10182A),
+        title: const Text(
+          'Clear Chat History?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'This will permanently delete all your chat messages. This action cannot be undone.',
+          style: TextStyle(color: Color(0xFF9AA4B2)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF9AA4B2)),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'Clear',
+              style: TextStyle(color: Colors.redAccent),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final auth = context.read<AuthService>();
+      final uid = auth.user?.uid ?? '';
+      final chatProvider = context.read<ChatProvider>();
+
+      try {
+        await chatProvider.clearChatHistory(uid);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Chat history cleared'),
+              duration: Duration(seconds: 2),
+              backgroundColor: Color(0xFF10182A),
+            ),
+          );
+        }
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Failed to clear chat history'),
+              duration: const Duration(seconds: 2),
+              backgroundColor: Colors.redAccent.shade700,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   bool _containsWord(String text, String word) {
     final regex = RegExp('\\b${RegExp.escape(word)}\\b', caseSensitive: false);
     return regex.hasMatch(text);
@@ -440,6 +502,13 @@ class _ChatScreenState extends State<ChatScreen> {
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.clear_all_rounded),
+            onPressed: _showClearChatDialog,
+            tooltip: 'Clear chat history',
+          ),
+        ],
       ),
       body: Column(
         children: [
