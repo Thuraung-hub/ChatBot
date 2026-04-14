@@ -34,10 +34,6 @@ class _ChatScreenState extends State<ChatScreen> {
       label: 'Return Policy',
       message: 'What is the return policy?',
     ),
-    ChatQuickReply(
-      label: 'Product Info',
-      message: 'Tell me more product info and details',
-    ),
   ];
 
   static const String _returnPolicyMessage =
@@ -180,6 +176,70 @@ class _ChatScreenState extends State<ChatScreen> {
         _containsWord(query, 'details');
   }
 
+  bool _isProductListQuery(String query) {
+    final hasProductWord =
+        _containsWord(query, 'product') || _containsWord(query, 'products');
+    final hasCatalogWord =
+        _containsWord(query, 'catalog') || _containsWord(query, 'inventory');
+    final hasListIntent =
+        _containsWord(query, 'list') ||
+        _containsWord(query, 'show') ||
+        _containsWord(query, 'all') ||
+        _containsWord(query, 'items');
+    return hasCatalogWord || hasProductWord || (hasProductWord && hasListIntent);
+  }
+
+  int _extractRequestedPage(String query) {
+    final match = RegExp(r'\bpage\s*(\d+)\b', caseSensitive: false).firstMatch(query);
+    if (match == null) return 1;
+    final parsed = int.tryParse(match.group(1) ?? '1') ?? 1;
+    return parsed < 1 ? 1 : parsed;
+  }
+
+  String _buildPaginatedProductsReply(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs, {
+    required int page,
+    int pageSize = 8,
+  }) {
+    final total = docs.length;
+    final totalPages = (total / pageSize).ceil();
+    final safePage = page > totalPages ? totalPages : page;
+    final start = (safePage - 1) * pageSize;
+    final end = (start + pageSize) > total ? total : (start + pageSize);
+    final items = docs.sublist(start, end);
+
+    final buffer = StringBuffer(
+      'Available products (Page $safePage of $totalPages):\n\n',
+    );
+
+    for (final productDoc in items) {
+      final product = _safeMap(productDoc.data());
+      final name = (product['name'] ?? 'Product').toString();
+      final category = (product['category'] ?? 'General').toString();
+      final price = (product['price'] ?? '-').toString();
+      final description = (product['description'] ?? '').toString().trim();
+      final shortDescription = description.length > 80
+          ? '${description.substring(0, 80)}...'
+          : description;
+
+      buffer.writeln('• $name');
+      buffer.writeln('Category: $category');
+      buffer.writeln('Price: \$$price');
+      if (shortDescription.isNotEmpty) {
+        buffer.writeln(shortDescription);
+      }
+      buffer.writeln('');
+    }
+
+    if (safePage < totalPages) {
+      buffer.writeln(
+        'Type "show products page ${safePage + 1}" to see more items.',
+      );
+    }
+
+    return buffer.toString().trimRight();
+  }
+
   Future<String?> _buildCatalogReply(String message) async {
     final query = message.toLowerCase().trim();
     if (query.isEmpty) return null;
@@ -194,6 +254,13 @@ class _ChatScreenState extends State<ChatScreen> {
       if (docs.isEmpty) return null;
 
       final isReview = _isReviewQuery(query);
+      if (_isProductListQuery(query)) {
+        final requestedPage = _extractRequestedPage(query);
+        return _buildPaginatedProductsReply(
+          docs,
+          page: requestedPage,
+        );
+      }
 
       final matchedByName = docs.where((doc) {
         final data = _safeMap(doc.data());

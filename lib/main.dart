@@ -14,6 +14,7 @@ import 'app_theme.dart';
 import 'config/app_config.dart';
 import 'config/app_constants.dart';
 import 'services/auth_service.dart';
+import 'utils/page_routes.dart';
 import 'screens/registration_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
@@ -213,8 +214,8 @@ class _PinkyShopAppState extends State<PinkyShopApp> {
           if (child == null) return const SizedBox.shrink();
           if (!_isOffline) return child;
 
-          return WillPopScope(
-            onWillPop: () async => false,
+          return PopScope(
+            canPop: false,
             child: Stack(
               children: [
                 child,
@@ -232,69 +233,43 @@ class _PinkyShopAppState extends State<PinkyShopApp> {
   Route<dynamic> _generateRoute(RouteSettings settings) {
     switch (settings.name) {
       case AppConstants.rootRoute:
-        return MaterialPageRoute(
-          builder: (_) => const _AuthGate(),
-        );
+        return AppPageRoute.fade(const _AuthGate());
       case AppConstants.homeRoute:
-        return MaterialPageRoute(
-          builder: (_) => const _PrivateRoute(child: HomeScreen()),
+        return AppPageRoute.slideFromRight(
+          const _PrivateRoute(child: HomeScreen()),
         );
       case AppConstants.loginRoute:
-        return MaterialPageRoute(
-          builder: (_) => const _PublicRoute(child: LoginScreen()),
-        );
+        return AppPageRoute.fade(const _PublicRoute(child: LoginScreen()));
       case AppConstants.signupRoute:
-        return MaterialPageRoute(
-          builder: (_) => const _PublicRoute(child: RegistrationScreen()),
+        return AppPageRoute.slideFromRight(
+          const _PublicRoute(child: RegistrationScreen()),
         );
       case AppConstants.cartRoute:
-        return MaterialPageRoute(
-          builder: (_) => const _PrivateRoute(child: CartScreen()),
+        return AppPageRoute.slideFromRight(
+          const _PrivateRoute(child: CartScreen()),
         );
       case AppConstants.profileRoute:
-        return MaterialPageRoute(
-          builder: (_) => const _PrivateRoute(child: ProfileScreen()),
+        return AppPageRoute.slideFromRight(
+          const _PrivateRoute(child: ProfileScreen()),
         );
       case AppConstants.chatRoute:
-        return _buildSlideUpRoute(const _PrivateRoute(child: ChatScreen()));
+        return AppPageRoute.slideFromBottom(
+          const _PrivateRoute(child: ChatScreen()),
+        );
       case AppConstants.adminRoute:
-        return MaterialPageRoute(
-          builder: (_) => const _AdminRoute(child: AdminDashboard()),
+        return AppPageRoute.slideFromRight(
+          const _AdminRoute(child: AdminDashboard()),
         );
       case AppConstants.productRoute:
         final productId = settings.arguments as String? ?? '';
-        return MaterialPageRoute(
-          builder: (_) => _PrivateRoute(
+        return AppPageRoute.slideFromRight(
+          _PrivateRoute(
             child: ProductDetailScreen(productId: productId),
           ),
         );
       default:
-        return MaterialPageRoute(
-          builder: (_) => const _AuthGate(),
-        );
+        return AppPageRoute.fade(const _AuthGate());
     }
-  }
-
-  PageRouteBuilder<dynamic> _buildSlideUpRoute(Widget child) {
-    return PageRouteBuilder(
-      pageBuilder: (_, animation, secondaryAnimation) => child,
-      transitionDuration: const Duration(milliseconds: 280),
-      reverseTransitionDuration: const Duration(milliseconds: 220),
-      transitionsBuilder: (_, animation, secondaryAnimation, child) {
-        final slideTween = Tween<Offset>(
-          begin: const Offset(0, 0.12),
-          end: Offset.zero,
-        ).chain(CurveTween(curve: Curves.easeOutCubic));
-
-        return FadeTransition(
-          opacity: animation,
-          child: SlideTransition(
-            position: animation.drive(slideTween),
-            child: child,
-          ),
-        );
-      },
-    );
   }
 }
 

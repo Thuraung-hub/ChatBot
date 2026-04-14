@@ -33,9 +33,18 @@ dependencies:
   dio: ^5.3.0
   sentry_flutter: ^8.3.0
 
-  # UI
+  # UI & Fonts
   cached_network_image: ^3.3.1
   shimmer: ^3.0.0
+  google_fonts: ^7.0.0
+  flutter_spinkit: ^5.2.0
+  smooth_page_indicator: ^1.1.0
+  
+  # Animations
+  get: ^4.6.0
+  
+  # Bottom Navigation
+  bottom_navy_bar: ^6.0.0
 
   # Icons
   cupertino_icons: ^1.0.6

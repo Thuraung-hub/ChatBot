@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   static const Color background = Color(0xFF121212);
@@ -11,13 +12,25 @@ class AppTheme {
   static const Color border = Color(0xFF2A2A2A);
   static const Color error = Color(0xFFEF5350);
   static const Color success = Color(0xFF66BB6A);
+  
+  // NEW: Semantic colors for states and feedback
+  static const Color warning = Color(0xFFFFA726);
+  static const Color info = Color(0xFF42A5F5);
+  static const Color disabled = Color(0xFF424242);
+  static const Color overlay = Color(0xFF000000);
+  
+  // NEW: Light variants for better visual hierarchy
+  static const Color errorLight = Color(0x33EF5350);
+  static const Color successLight = Color(0x3366BB6A);
+  static const Color warningLight = Color(0x33FFA726);
+  static const Color infoLight = Color(0x3342A5F5);
+  static const Color primaryLight = Color(0x1AD4AF37);
 
   // Backward-compatible color aliases used throughout existing screens.
   static const Color screenBg = background;
   static const Color royalBlue = primary;
   static const Color deepButtonBg = surface;
   static const Color deepButtonBorder = border;
-  static const Color primaryLight = surface;
   static const Color primaryDark = primary;
   static const Color dark = textPrimary;
   static const Color textDark = textDarkBase;
@@ -25,116 +38,8 @@ class AppTheme {
   static const Color borderGray = border;
   static const Color bgGray = surface;
   static const Color red = error;
-  static const Color redLight = Color(0x33EF5350);
+  static const Color redLight = errorLight;
   static const Color green = success;
-
-  static const TextTheme _textTheme = TextTheme(
-    displayLarge: TextStyle(
-      fontFamily: 'Montserrat',
-      fontSize: 57,
-      fontWeight: FontWeight.w700,
-      letterSpacing: -1.0,
-      color: textPrimary,
-    ),
-    displayMedium: TextStyle(
-      fontFamily: 'Montserrat',
-      fontSize: 45,
-      fontWeight: FontWeight.w700,
-      letterSpacing: -0.8,
-      color: textPrimary,
-    ),
-    displaySmall: TextStyle(
-      fontFamily: 'Montserrat',
-      fontSize: 36,
-      fontWeight: FontWeight.w700,
-      letterSpacing: -0.6,
-      color: textPrimary,
-    ),
-    headlineLarge: TextStyle(
-      fontFamily: 'Montserrat',
-      fontSize: 32,
-      fontWeight: FontWeight.w700,
-      letterSpacing: -0.5,
-      color: textPrimary,
-    ),
-    headlineMedium: TextStyle(
-      fontFamily: 'Montserrat',
-      fontSize: 28,
-      fontWeight: FontWeight.w700,
-      letterSpacing: -0.4,
-      color: textPrimary,
-    ),
-    headlineSmall: TextStyle(
-      fontFamily: 'Montserrat',
-      fontSize: 24,
-      fontWeight: FontWeight.w700,
-      letterSpacing: -0.3,
-      color: textPrimary,
-    ),
-    titleLarge: TextStyle(
-      fontFamily: 'Montserrat',
-      fontSize: 22,
-      fontWeight: FontWeight.w700,
-      letterSpacing: -0.2,
-      color: textPrimary,
-    ),
-    titleMedium: TextStyle(
-      fontFamily: 'Inter',
-      fontSize: 16,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0,
-      color: textPrimary,
-    ),
-    titleSmall: TextStyle(
-      fontFamily: 'Inter',
-      fontSize: 14,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0,
-      color: textPrimary,
-    ),
-    bodyLarge: TextStyle(
-      fontFamily: 'Inter',
-      fontSize: 16,
-      fontWeight: FontWeight.w400,
-      letterSpacing: 0.1,
-      color: textPrimary,
-    ),
-    bodyMedium: TextStyle(
-      fontFamily: 'Inter',
-      fontSize: 14,
-      fontWeight: FontWeight.w400,
-      letterSpacing: 0.1,
-      color: textPrimary,
-    ),
-    bodySmall: TextStyle(
-      fontFamily: 'Inter',
-      fontSize: 12,
-      fontWeight: FontWeight.w400,
-      letterSpacing: 0.2,
-      color: textSecondary,
-    ),
-    labelLarge: TextStyle(
-      fontFamily: 'Inter',
-      fontSize: 14,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0.1,
-      color: textPrimary,
-    ),
-    labelMedium: TextStyle(
-      fontFamily: 'Inter',
-      fontSize: 12,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0.2,
-      color: textPrimary,
-    ),
-    labelSmall: TextStyle(
-      fontFamily: 'Inter',
-      fontSize: 11,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0.2,
-      color: textSecondary,
-    ),
-  );
 
   static ThemeData get theme => ThemeData(
         useMaterial3: true,
@@ -148,16 +53,15 @@ class AppTheme {
           error: error,
           onError: Colors.white,
         ),
-        fontFamily: 'Inter',
-        textTheme: _textTheme,
+        fontFamily: GoogleFonts.inter().fontFamily,
+        textTheme: _buildTextTheme(),
         scaffoldBackgroundColor: background,
-        appBarTheme: const AppBarTheme(
+        appBarTheme: AppBarTheme(
           backgroundColor: background,
           foregroundColor: textPrimary,
           elevation: 0,
           scrolledUnderElevation: 0,
-          titleTextStyle: TextStyle(
-            fontFamily: 'Montserrat',
+          titleTextStyle: GoogleFonts.montserrat(
             color: textPrimary,
             fontWeight: FontWeight.w700,
             fontSize: 20,
@@ -222,4 +126,101 @@ class AppTheme {
           ),
         ),
       );
+
+  /// Build text theme with Google Fonts
+  static TextTheme _buildTextTheme() {
+    return TextTheme(
+      displayLarge: GoogleFonts.montserrat(
+        fontSize: 57,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -1.0,
+        color: textPrimary,
+      ),
+      displayMedium: GoogleFonts.montserrat(
+        fontSize: 45,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.8,
+        color: textPrimary,
+      ),
+      displaySmall: GoogleFonts.montserrat(
+        fontSize: 36,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.6,
+        color: textPrimary,
+      ),
+      headlineLarge: GoogleFonts.montserrat(
+        fontSize: 32,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.5,
+        color: textPrimary,
+      ),
+      headlineMedium: GoogleFonts.montserrat(
+        fontSize: 28,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.4,
+        color: textPrimary,
+      ),
+      headlineSmall: GoogleFonts.montserrat(
+        fontSize: 24,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.3,
+        color: textPrimary,
+      ),
+      titleLarge: GoogleFonts.montserrat(
+        fontSize: 22,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.2,
+        color: textPrimary,
+      ),
+      titleMedium: GoogleFonts.inter(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0,
+        color: textPrimary,
+      ),
+      titleSmall: GoogleFonts.inter(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0,
+        color: textPrimary,
+      ),
+      bodyLarge: GoogleFonts.inter(
+        fontSize: 16,
+        fontWeight: FontWeight.w400,
+        letterSpacing: 0.1,
+        color: textPrimary,
+      ),
+      bodyMedium: GoogleFonts.inter(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        letterSpacing: 0.1,
+        color: textPrimary,
+      ),
+      bodySmall: GoogleFonts.inter(
+        fontSize: 12,
+        fontWeight: FontWeight.w400,
+        letterSpacing: 0.2,
+        color: textSecondary,
+      ),
+      labelLarge: GoogleFonts.inter(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.1,
+        color: textPrimary,
+      ),
+      labelMedium: GoogleFonts.inter(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.2,
+        color: textPrimary,
+      ),
+      labelSmall: GoogleFonts.inter(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.2,
+        color: textSecondary,
+      ),
+    );
+  }
 }
+
