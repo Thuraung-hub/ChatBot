@@ -6,6 +6,7 @@ import '../app_theme.dart';
 import '../models/product.dart';
 import '../services/auth_service.dart';
 import '../services/monitoring_service.dart';
+import '../widgets/app_dialogs.dart';
 import '../widgets/category_section_header.dart';
 import '../widgets/product_card.dart';
 import '../widgets/product_skeleton.dart';
@@ -126,20 +127,9 @@ class HomeScreen extends StatelessWidget {
 
       if (!context.mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Added to cart'),
-          action: SnackBarAction(
-            label: 'Checkout Now',
-            textColor: Colors.white,
-            onPressed: () => Navigator.pushNamed(context, Routes.cart.path),
-          ),
-          duration: const Duration(seconds: 3),
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          backgroundColor: AppTheme.primary,
-        ),
+      await AppDialog.showCartAddedDialog(
+        context,
+        onCheckoutNow: () => Navigator.pushNamed(context, Routes.cart.path),
       );
     } catch (error, stackTrace) {
       await MonitoringService.captureException(

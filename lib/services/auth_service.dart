@@ -115,6 +115,27 @@ class AuthService extends ChangeNotifier {
     return signInWithEmail(email, password);
   }
 
+  Future<void> sendPasswordReset(String email) async {
+    final normalizedEmail = email.trim().toLowerCase();
+    if (normalizedEmail.isEmpty) {
+      throw Exception('Email address is required.');
+    }
+
+    _setProcessing(true);
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _auth.sendPasswordResetEmail(email: normalizedEmail);
+    } catch (e) {
+      _errorMessage = _friendlyError(e);
+      notifyListeners();
+      rethrow;
+    } finally {
+      _setProcessing(false);
+    }
+  }
+
   Future<void> registerWithEmail({
     required String email,
     required String password,

@@ -97,11 +97,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                             style: TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.w900,
-                                color: AppTheme.dark)),
+                            color: Colors.black)),
                         const SizedBox(height: 4),
                         const Text('Join Pinky Shop today',
                             style: TextStyle(
-                                color: AppTheme.textGray, fontSize: 15)),
+                            color: Colors.black, fontSize: 15)),
                         const SizedBox(height: 28),
                         if (auth.errorMessage != null) ...[
                           Container(
@@ -123,6 +123,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         TextFormField(
                           controller: _nameController,
                           textInputAction: TextInputAction.next,
+                          style: const TextStyle(color: Colors.black),
                           validator: AppValidators.name,
                           decoration: const InputDecoration(
                             prefixIcon: Icon(Icons.person_outline_rounded,
@@ -137,6 +138,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
                           textInputAction: TextInputAction.next,
+                          style: const TextStyle(color: Colors.black),
                           validator: AppValidators.email,
                           decoration: const InputDecoration(
                             prefixIcon: Icon(Icons.mail_outline_rounded,
@@ -151,6 +153,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                           controller: _passwordController,
                           obscureText: _obscure,
                           textInputAction: TextInputAction.done,
+                          style: const TextStyle(color: Colors.black),
                           validator: AppValidators.password,
                           decoration: InputDecoration(
                             prefixIcon: const Icon(Icons.lock_outline_rounded,
@@ -193,7 +196,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                   contentPadding: EdgeInsets.zero,
                                   title: const Text(
                                     'I agree to the Privacy Policy and User Agreement',
-                                    style: TextStyle(fontSize: 13),
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.black,
+                                    ),
                                   ),
                                 ),
                                 if (state.errorText != null)
@@ -233,7 +239,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                             child: RichText(
                               text: const TextSpan(
                                 style: TextStyle(
-                                    color: AppTheme.textGray, fontSize: 14),
+                                    color: Colors.black, fontSize: 14),
                                 children: [
                                   TextSpan(text: 'Already have an account? '),
                                   TextSpan(
@@ -261,5 +267,5 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   Widget _label(String text) => Text(text,
       style: const TextStyle(
-          fontWeight: FontWeight.w600, fontSize: 13, color: AppTheme.dark));
+        fontWeight: FontWeight.w600, fontSize: 13, color: Colors.black));
 }

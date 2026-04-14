@@ -41,6 +41,7 @@ dependencies:
   flutter_spinkit: ^5.2.0
   smooth_page_indicator: ^2.0.1
   image_picker: ^1.0.4
+  file_picker: ^8.1.7
   
   # Animations
   get: ^4.6.0

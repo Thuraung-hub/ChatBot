@@ -82,8 +82,151 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacementNamed(context, Routes.home.path);
       }
     } catch (_) {
-      // Error is shown via auth.errorMessage panel.
+      if (!mounted) return;
+      final message = auth.errorMessage ??
+          'Google sign-in failed. Please try again.';
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(message),
+            duration: const Duration(seconds: 4),
+            backgroundColor: Colors.redAccent.shade700,
+          ),
+        );
     }
+  }
+
+  Future<void> _showForgotPasswordDialog() async {
+    final auth = context.read<AuthService>();
+    final resetEmailController = TextEditingController(
+      text: _emailController.text.trim(),
+    );
+    final formKey = GlobalKey<FormState>();
+    bool sending = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setLocalState) => AlertDialog(
+            backgroundColor: Colors.white,
+            title: const Text(
+              'Reset Password',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                color: AppTheme.textDark,
+              ),
+            ),
+            content: Form(
+              key: formKey,
+              child: SizedBox(
+                width: 420,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Forgot your password? Enter your email to reset it.',
+                      style: TextStyle(color: AppTheme.textDark),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Can\'t log in? We\'ll send you a password reset link.',
+                      style: TextStyle(color: AppTheme.textGray),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Enter your registered email to receive reset instructions.',
+                      style: TextStyle(color: AppTheme.textGray),
+                    ),
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      controller: resetEmailController,
+                      keyboardType: TextInputType.emailAddress,
+                      autofocus: true,
+                      validator: AppValidators.email,
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(
+                          Icons.mail_outline_rounded,
+                          color: AppTheme.textGray,
+                        ),
+                        hintText: 'name@example.com',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: sending
+                    ? null
+                    : () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: sending
+                    ? null
+                    : () async {
+                        if (!(formKey.currentState?.validate() ?? false)) {
+                          return;
+                        }
+
+                        setLocalState(() => sending = true);
+                        try {
+                          await auth.sendPasswordReset(
+                            resetEmailController.text,
+                          );
+
+                          if (!dialogContext.mounted) return;
+                          Navigator.pop(dialogContext);
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context)
+                            ..clearSnackBars()
+                            ..showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Reset link sent. Check your email to create a new password. If you do not see it, check your spam folder.',
+                                ),
+                                duration: Duration(seconds: 4),
+                              ),
+                            );
+                        } catch (_) {
+                          if (!dialogContext.mounted) return;
+                          setLocalState(() => sending = false);
+                          ScaffoldMessenger.of(dialogContext)
+                            ..clearSnackBars()
+                            ..showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  auth.errorMessage ??
+                                      'Unable to send reset email right now.',
+                                ),
+                                backgroundColor: Colors.redAccent.shade700,
+                                duration: const Duration(seconds: 4),
+                              ),
+                            );
+                        }
+                      },
+                child: sending
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Send Reset Link'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    resetEmailController.dispose();
   }
 
   @override
@@ -195,7 +338,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
-                            onPressed: () {},
+                            onPressed: _showForgotPasswordDialog,
                             style: TextButton.styleFrom(
                               foregroundColor: AppTheme.royalBlue,
                               padding: EdgeInsets.zero,

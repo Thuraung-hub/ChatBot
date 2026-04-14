@@ -25,6 +25,11 @@ service firebase.storage {
       allow read: if isOwner(userId);
     }
 
+    match /product_images/{userId}/{fileName} {
+      allow write: if isOwner(userId) && validImageUpload(5 * 1024 * 1024);
+      allow read: if isOwner(userId);
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

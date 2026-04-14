@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:async';
-import 'dart:typed_data';
 import '../config/app_constants.dart';
 import '../config/app_validators.dart';
 import '../app_theme.dart';
@@ -13,6 +14,7 @@ import '../models/product.dart';
 import '../models/user_profile.dart';
 import '../services/auth_service.dart';
 import '../services/monitoring_service.dart';
+import '../widgets/app_dialogs.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final String productId;
@@ -35,8 +37,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     super.dispose();
   }
 
-  Future<bool> _addToCart(BuildContext context, Product product,
-      {bool showSnack = true}) async {
+  Future<bool> _addToCart(BuildContext context, Product product) async {
     final auth = context.read<AuthService>();
     if (auth.user == null) {
       Navigator.pushNamed(context, Routes.login.path);
@@ -69,20 +70,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       }
 
       if (!context.mounted) return true;
-      if (showSnack) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: const Text('Added to cart'),
-            action: SnackBarAction(
-              label: 'Checkout Now',
-              textColor: Colors.white,
-              onPressed: () => Navigator.pushNamed(context, Routes.cart.path),
-            ),
-            duration: const Duration(seconds: 3),
-            backgroundColor: AppTheme.primary,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12))));
-      }
+      await AppDialog.showCartAddedDialog(
+        context,
+        onCheckoutNow: () => Navigator.pushNamed(context, Routes.cart.path),
+      );
       return true;
     } catch (error, stackTrace) {
       await MonitoringService.captureException(
@@ -306,7 +297,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               : SafeArea(
                   top: false,
                   child: Container(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
                       color: AppTheme.surface,
                       border: Border(
@@ -315,28 +306,80 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         ),
                       ),
                     ),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: (_adding || _buyingNow)
-                            ? null
-                            : () => _addToCart(context, product),
-                        icon: _adding
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.shopping_cart_outlined),
-                        label: Text(_adding ? 'Adding...' : 'Add to Cart'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 18),
-                          minimumSize: const Size.fromHeight(54),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Buy Now Button
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: (_adding || _buyingNow)
+                                ? null
+                                : () => _buyNow(context, product),
+                            icon: _buyingNow
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.flash_on_rounded),
+                            label: Text(
+                              _buyingNow ? 'Processing...' : 'Buy Now',
+                              style: const TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.royalBlue,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              minimumSize: const Size.fromHeight(52),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 10),
+                        // Add to Cart Button
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: (_adding || _buyingNow)
+                                ? null
+                                : () => _addToCart(context, product),
+                            icon: _adding
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      color: AppTheme.primary,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.shopping_cart_outlined),
+                            label: Text(
+                              _adding ? 'Adding...' : 'Add to Cart',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(
+                                color: AppTheme.primary,
+                                width: 1.5,
+                              ),
+                              foregroundColor: AppTheme.primary,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              minimumSize: const Size.fromHeight(52),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -456,42 +499,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               color: AppTheme.primary),
                         ],
                       ),
-
-                      if (!auth.isAdmin) ...[
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: (_adding || _buyingNow)
-                                ? null
-                                : () => _buyNow(context, product),
-                            icon: _buyingNow
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                        color: AppTheme.royalBlue,
-                                        strokeWidth: 2),
-                                  )
-                                : const Icon(Icons.flash_on_rounded,
-                                    color: AppTheme.royalBlue),
-                            label: Text(
-                              _buyingNow ? 'Processing...' : 'Buy Now',
-                              style: const TextStyle(
-                                color: AppTheme.royalBlue,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(
-                                  color: AppTheme.royalBlue, width: 1.4),
-                              padding: const EdgeInsets.symmetric(vertical: 18),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16)),
-                            ),
-                          ),
-                        ),
-                      ],
 
                       // Comments section
                       const SizedBox(height: 40),
@@ -761,15 +768,29 @@ class _QuickCheckoutPageState extends State<_QuickCheckoutPage> {
 
   Future<void> _pickBillSlip(ImageSource source) async {
     try {
-      final picker = ImagePicker();
-      final image = await picker.pickImage(
-        source: source,
-        imageQuality: 45,
-        maxWidth: 800,
-        maxHeight: 800,
-      );
-      if (image == null) return;
-      final bytes = await image.readAsBytes();
+      Uint8List? bytes;
+
+      if (kIsWeb) {
+        final result = await FilePicker.platform.pickFiles(
+          type: FileType.image,
+          withData: true,
+          allowMultiple: false,
+        );
+        if (result == null || result.files.isEmpty) return;
+        bytes = result.files.single.bytes;
+      } else {
+        final picker = ImagePicker();
+        final image = await picker.pickImage(
+          source: source,
+          imageQuality: 45,
+          maxWidth: 800,
+          maxHeight: 800,
+        );
+        if (image == null) return;
+        bytes = await image.readAsBytes();
+      }
+
+      if (bytes == null) return;
       if (bytes.lengthInBytes > 1024 * 1024) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -785,8 +806,12 @@ class _QuickCheckoutPageState extends State<_QuickCheckoutPage> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to pick image. Please try again.'),
+        SnackBar(
+          content: Text(
+            kIsWeb
+                ? 'Failed to select image from this browser. Try Choose File again.'
+                : 'Failed to pick image. Please try again.',
+          ),
           backgroundColor: AppTheme.red,
         ),
       );
@@ -801,15 +826,6 @@ class _QuickCheckoutPageState extends State<_QuickCheckoutPage> {
       bytes,
       SettableMetadata(contentType: 'image/jpeg'),
     );
-
-    task.snapshotEvents.listen((snapshot) {
-      if (!mounted) return;
-      final total = snapshot.totalBytes;
-      if (total <= 0) return;
-      setState(() {
-        _uploadProgress = snapshot.bytesTransferred / total;
-      });
-    });
 
     try {
       await task.timeout(
@@ -972,18 +988,20 @@ class _QuickCheckoutPageState extends State<_QuickCheckoutPage> {
                   if (_billSlipBytes != null) const SizedBox(height: 10),
                   Row(
                     children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Color(0xFF2A3550)),
+                      if (!kIsWeb) ...[
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Color(0xFF2A3550)),
+                            ),
+                            onPressed: () => _pickBillSlip(ImageSource.camera),
+                            icon: const Icon(Icons.camera_alt_outlined),
+                            label: const Text('Camera'),
                           ),
-                          onPressed: () => _pickBillSlip(ImageSource.camera),
-                          icon: const Icon(Icons.camera_alt_outlined),
-                          label: const Text('Camera'),
                         ),
-                      ),
-                      const SizedBox(width: 10),
+                        const SizedBox(width: 10),
+                      ],
                       Expanded(
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
@@ -992,7 +1010,7 @@ class _QuickCheckoutPageState extends State<_QuickCheckoutPage> {
                           ),
                           onPressed: () => _pickBillSlip(ImageSource.gallery),
                           icon: const Icon(Icons.photo_library_outlined),
-                          label: const Text('Gallery'),
+                          label: Text(kIsWeb ? 'Choose File' : 'Gallery'),
                         ),
                       ),
                     ],

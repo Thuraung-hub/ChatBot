@@ -4,8 +4,73 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../app_theme.dart';
 
-class BuyItemScreen extends StatelessWidget {
+class BuyItemScreen extends StatefulWidget {
   const BuyItemScreen({super.key});
+
+  @override
+  State<BuyItemScreen> createState() => _BuyItemScreenState();
+}
+
+class _BuyItemScreenState extends State<BuyItemScreen> {
+  Future<void> _clearPurchaseHistory(String uid) async {
+    if (uid.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Clear Purchase History'),
+        content: const Text(
+          'This will permanently delete your purchased items and order history. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text(
+              'Clear',
+              style: TextStyle(color: Colors.redAccent),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final collection = FirebaseFirestore.instance.collection('users/$uid/orders');
+
+      while (true) {
+        final snapshot = await collection.limit(400).get();
+        if (snapshot.docs.isEmpty) break;
+
+        final batch = FirebaseFirestore.instance.batch();
+        for (final doc in snapshot.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Purchase history cleared successfully.'),
+          backgroundColor: AppTheme.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to clear purchase history: $e'),
+          backgroundColor: AppTheme.red,
+        ),
+      );
+    }
+  }
 
   String _formatDate(String iso) {
     try {
@@ -26,6 +91,14 @@ class BuyItemScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Buy Item'),
+        actions: [
+          if (uid != null)
+            IconButton(
+              icon: const Icon(Icons.delete_sweep_rounded),
+              tooltip: 'Clear purchase history',
+              onPressed: () => _clearPurchaseHistory(uid),
+            ),
+        ],
       ),
       body: uid == null
           ? const Center(
@@ -34,11 +107,11 @@ class BuyItemScreen extends StatelessWidget {
                 style: TextStyle(color: AppTheme.textGray),
               ),
             )
-          : FutureBuilder<QuerySnapshot>(
-              future: FirebaseFirestore.instance
+          : StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
                   .collection('users/$uid/orders')
                   .orderBy('orderedAt', descending: true)
-                  .get(),
+                  .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(

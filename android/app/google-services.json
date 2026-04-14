@@ -12,7 +12,12 @@
           "package_name": "com.example.pinky_shop"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "152322049825-j0699hb3ng6efutl4jegufkm3fqrec1g.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAV4dt7ne1UFzO1hTVPlPZLNDCcGZbfz5E"
@@ -20,7 +25,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "152322049825-j0699hb3ng6efutl4jegufkm3fqrec1g.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "152322049825-1mqhkmnq8kakg3jhsj07lofo8d6pmchs.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.pinkyShop"
+              }
+            }
+          ]
         }
       }
     }

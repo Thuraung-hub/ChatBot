@@ -51,17 +51,23 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('chat')
-          .where('userId', isEqualTo: uid)
-          .get();
+      // Firestore batches are limited; clear in chunks to handle large histories.
+      while (true) {
+        final snapshot = await FirebaseFirestore.instance
+            .collection('chat')
+            .where('userId', isEqualTo: uid)
+            .limit(400)
+            .get();
 
-      final batch = FirebaseFirestore.instance.batch();
-      for (final doc in snapshot.docs) {
-        batch.delete(doc.reference);
+        if (snapshot.docs.isEmpty) break;
+
+        final batch = FirebaseFirestore.instance.batch();
+        for (final doc in snapshot.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
       }
 
-      await batch.commit();
       _lastReply = null;
     } catch (e) {
       rethrow;

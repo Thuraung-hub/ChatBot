@@ -64,6 +64,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '152322049825',
     projectId: 'pinky-shop-f5ad6',
     storageBucket: 'pinky-shop-f5ad6.firebasestorage.app',
+    iosClientId: '152322049825-1mqhkmnq8kakg3jhsj07lofo8d6pmchs.apps.googleusercontent.com',
     iosBundleId: 'com.example.pinkyShop',
   );
 
@@ -73,6 +74,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '152322049825',
     projectId: 'pinky-shop-f5ad6',
     storageBucket: 'pinky-shop-f5ad6.firebasestorage.app',
+    iosClientId: '152322049825-1mqhkmnq8kakg3jhsj07lofo8d6pmchs.apps.googleusercontent.com',
     iosBundleId: 'com.example.pinkyShop',
   );
 
@@ -85,4 +87,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'pinky-shop-f5ad6.firebasestorage.app',
     measurementId: 'G-8KEQ7KYY12',
   );
+
 }

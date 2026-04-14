@@ -151,10 +151,20 @@ class _ChatScreenState extends State<ChatScreen> {
     if (confirmed == true && mounted) {
       final auth = context.read<AuthService>();
       final uid = auth.user?.uid ?? '';
-      final chatProvider = context.read<ChatProvider>();
+
+      if (uid.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Unable to clear chat right now. Please re-login.'),
+            duration: const Duration(seconds: 2),
+            backgroundColor: Colors.redAccent.shade700,
+          ),
+        );
+        return;
+      }
 
       try {
-        await chatProvider.clearChatHistory(uid);
+        await _chatProvider.clearChatHistory(uid);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
