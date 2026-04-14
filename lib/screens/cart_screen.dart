@@ -331,6 +331,26 @@ class _OrderSummaryState extends State<_OrderSummary> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF27324A)),
+                ),
+                child: const Row(
+                  children: [
+                    _CartStepPill(number: '1', label: 'Upload slip'),
+                    SizedBox(width: 10),
+                    Icon(Icons.chevron_right_rounded,
+                        color: Color(0xFFB6C2D9)),
+                    SizedBox(width: 10),
+                    _CartStepPill(number: '2', label: 'Confirm order'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
               const Text(
                 'Upload Payment Bill Slip (Optional)',
                 style: TextStyle(
@@ -612,6 +632,47 @@ class _OrderSummaryState extends State<_OrderSummary> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _CartStepPill extends StatelessWidget {
+  final String number;
+  final String label;
+
+  const _CartStepPill({required this.number, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 26,
+          height: 26,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            color: AppTheme.primary,
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            number,
+            style: const TextStyle(
+              color: AppTheme.dark,
+              fontWeight: FontWeight.w900,
+              fontSize: 12,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -30,14 +30,21 @@ service cloud.firestore {
 
       match /comments/{commentId} {
         allow read: if true;
-        allow create: if signedIn();
+        allow create: if signedIn() &&
+          request.resource.data.userId == request.auth.uid;
         allow update, delete: if isAdmin() ||
           (signedIn() && resource.data.userId == request.auth.uid);
       }
     }
 
     match /admin_notifications/{notificationId} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin();
+      allow create: if signedIn() &&
+        request.resource.data.customerId == request.auth.uid &&
+        request.resource.data.type == 'purchase' &&
+        request.resource.data.read == false &&
+        request.resource.data.createdAt is string;
+      allow update, delete: if isAdmin();
     }
 
     match /chat/{chatId} {

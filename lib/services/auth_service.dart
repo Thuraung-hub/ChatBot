@@ -2,12 +2,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:convert';
 
 import '../config/app_config.dart';
 import '../config/app_constants.dart';
 import '../models/user_profile.dart';
+import 'google_sign_in_service.dart';
 import 'password_hasher.dart';
 import 'secure_storage_service.dart';
 
@@ -20,7 +20,6 @@ class AuthService extends ChangeNotifier {
   bool _loading = true;
   bool _processing = false;
   String? _errorMessage;
-  bool _googleSignInInitialized = false;
 
   User? get user => _user;
   UserProfile? get profile => _profile;
@@ -207,7 +206,7 @@ class AuthService extends ChangeNotifier {
         final googleProvider = GoogleAuthProvider();
         cred = await _auth.signInWithPopup(googleProvider);
       } else {
-        final googleSignIn = await _getGoogleSignIn();
+        final googleSignIn = await GoogleSignInService.instance.client;
         final googleUser = await googleSignIn.authenticate();
 
         final googleAuth = googleUser.authentication;
@@ -251,15 +250,6 @@ class AuthService extends ChangeNotifier {
       return uri;
     }
     return uri.replace(scheme: 'https');
-  }
-
-  Future<GoogleSignIn> _getGoogleSignIn() async {
-    final googleSignIn = GoogleSignIn.instance;
-    if (!_googleSignInInitialized) {
-      await googleSignIn.initialize();
-      _googleSignInInitialized = true;
-    }
-    return googleSignIn;
   }
 
   Future<void> _registerWithBackend({
@@ -323,7 +313,7 @@ class AuthService extends ChangeNotifier {
     await SecureStorageService.clearAuthToken();
 
     try {
-      final googleSignIn = await _getGoogleSignIn();
+      final googleSignIn = await GoogleSignInService.instance.client;
       await googleSignIn.signOut();
     } catch (_) {}
   }
@@ -374,7 +364,7 @@ class AuthService extends ChangeNotifier {
       }
 
       await SecureStorageService.clearAuthToken();
-      final googleSignIn = await _getGoogleSignIn();
+      final googleSignIn = await GoogleSignInService.instance.client;
       await googleSignIn.signOut();
       await _auth.signOut();
 

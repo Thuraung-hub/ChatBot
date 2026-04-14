@@ -214,8 +214,11 @@ class HomeScreen extends StatelessWidget {
             grouped.putIfAbsent(p.category, () => []).add(p);
           }
 
-          return CustomScrollView(
-            slivers: [
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1200),
+              child: CustomScrollView(
+                slivers: [
               // Header
               SliverToBoxAdapter(
                 child: Padding(
@@ -353,6 +356,8 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
             ],
+              ),
+            ),
           );
         },
       ),

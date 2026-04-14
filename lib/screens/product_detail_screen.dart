@@ -891,9 +891,30 @@ class _QuickCheckoutPageState extends State<_QuickCheckoutPage> {
         ),
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1200),
+            child: ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF121826),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF27324A)),
+              ),
+              child: const Row(
+                children: [
+                  _StepPill(number: '1', label: 'Upload slip'),
+                  SizedBox(width: 10),
+                  Icon(Icons.chevron_right_rounded, color: Color(0xFFB6C2D9)),
+                  SizedBox(width: 10),
+                  _StepPill(number: '2', label: 'Pay now'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
             Text(
               widget.product.name,
               style: const TextStyle(
@@ -1004,7 +1025,9 @@ class _QuickCheckoutPageState extends State<_QuickCheckoutPage> {
                 borderRadius: BorderRadius.circular(999),
               ),
             ],
-          ],
+              ],
+            ),
+          ),
         ),
       ),
       bottomNavigationBar: SafeArea(
@@ -1049,6 +1072,47 @@ class _QuickCheckoutPageState extends State<_QuickCheckoutPage> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _StepPill extends StatelessWidget {
+  final String number;
+  final String label;
+
+  const _StepPill({required this.number, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 26,
+          height: 26,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            color: AppTheme.primary,
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            number,
+            style: const TextStyle(
+              color: AppTheme.dark,
+              fontWeight: FontWeight.w900,
+              fontSize: 12,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
     );
   }
 }

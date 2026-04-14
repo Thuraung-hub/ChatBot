@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../config/app_constants.dart';
 import '../models/user_profile.dart';
+import '../services/google_sign_in_service.dart';
 import '../services/secure_storage_service.dart';
 
 class AuthProvider extends ChangeNotifier {
@@ -14,7 +15,6 @@ class AuthProvider extends ChangeNotifier {
   User? _user;
   UserProfile? _profile;
   bool _loading = true;
-  bool _googleSignInInitialized = false;
 
   User? get user => _user;
   UserProfile? get profile => _profile;
@@ -141,19 +141,9 @@ class AuthProvider extends ChangeNotifier {
   // GOOGLE LOGIN (WEB + MOBILE)
   // =============================
 
-  Future<GoogleSignIn> _getGoogleSignIn() async {
-    final googleSignIn = GoogleSignIn.instance;
-    if (!_googleSignInInitialized) {
-      await googleSignIn.initialize();
-      _googleSignInInitialized = true;
-    }
-    return googleSignIn;
-  }
-
   Future<void> signInWithGoogle() async {
 
     try {
-
       UserCredential cred;
 
       // ---------- WEB ----------
@@ -167,7 +157,7 @@ class AuthProvider extends ChangeNotifier {
 
       // ---------- MOBILE ----------
       else {
-        final googleSignIn = await _getGoogleSignIn();
+        final googleSignIn = await GoogleSignInService.instance.client;
         final GoogleSignInAccount googleUser =
           await googleSignIn.authenticate();
 
@@ -249,7 +239,7 @@ class AuthProvider extends ChangeNotifier {
     }
 
     try {
-      final googleSignIn = await _getGoogleSignIn();
+      final googleSignIn = await GoogleSignInService.instance.client;
       await googleSignIn.signOut();
     } catch (_) {}
 

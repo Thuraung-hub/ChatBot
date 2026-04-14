@@ -61,11 +61,11 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
               style: TextStyle(color: Colors.redAccent),
             ),
           ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
 
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true) return;
 
     try {
       final snapshot = await FirebaseFirestore.instance
@@ -135,7 +135,7 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
               child: Text(
                 'Unable to load notifications.',
                 style: TextStyle(color: AppTheme.textGray),
-              ),
+                ),
             );
           }
 
@@ -143,7 +143,7 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
             return const Center(
               child: CircularProgressIndicator(color: AppTheme.primary),
             );
-          }
+            }
 
           final notifications = snapshot.data!.docs;
           if (notifications.isEmpty) {
@@ -152,228 +152,294 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                 'No new orders yet.',
                 style: TextStyle(color: AppTheme.textGray),
               ),
-            );
+              );
           }
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(20),
-            itemCount: notifications.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 14),
-            itemBuilder: (context, index) {
-              final doc = notifications[index];
-              final data = notifications[index].data();
-              final notificationId = doc.id;
-              final productName = _text(data['productName']);
-              final customerName = _text(data['customerName']);
-              final customerEmail = _text(data['customerEmail']);
-              final status = _text(data['status']).toUpperCase();
-              final price = _text(data['productPrice']);
-              final createdAt = _text(data['createdAt']);
-              final billSlipUrl = _text(data['billSlipUrl'], fallback: '');
+          final unreadCount = notifications
+              .where((doc) => (doc.data()['read'] ?? false) == false)
+              .length;
 
-              return Dismissible(
-                key: Key(notificationId),
-                background: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.redAccent,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 20),
-                  child: const Icon(Icons.delete_rounded, color: Colors.white),
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryLight,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        unreadCount == 0
+                            ? 'All caught up'
+                            : '$unreadCount unread',
+                        style: const TextStyle(
+                          color: AppTheme.primary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    const Text(
+                      'Swipe to clear',
+                      style: TextStyle(
+                        color: AppTheme.textGray,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
-                direction: DismissDirection.endToStart,
-                confirmDismiss: (_) async {
-                  final confirmed = await showDialog<bool>(
-                    context: context,
-                    builder: (dialogContext) => AlertDialog(
-                      title: const Text('Delete Notification'),
-                      content: const Text(
-                        'Are you sure you want to clear this notification?',
+              ),
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.all(20),
+                  itemCount: notifications.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 14),
+                  itemBuilder: (context, index) {
+                    final doc = notifications[index];
+                    final data = notifications[index].data();
+                    final notificationId = doc.id;
+                    final productName = _text(data['productName']);
+                    final customerName = _text(data['customerName']);
+                    final customerEmail = _text(data['customerEmail']);
+                    final status = _text(data['status']).toUpperCase();
+                    final price = _text(data['productPrice']);
+                    final createdAt = _text(data['createdAt']);
+                    final billSlipUrl = _text(data['billSlipUrl'], fallback: '');
+                    final isUnread = data['read'] != true;
+
+                    return Dismissible(
+                      key: Key(notificationId),
+                      background: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 20),
+                        child: const Icon(Icons.delete_rounded, color: Colors.white),
                       ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(dialogContext, false),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(dialogContext, true),
-                          child: const Text(
-                            'Delete',
-                            style: TextStyle(color: Colors.redAccent),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                  return confirmed == true;
-                },
-                onDismissed: (_) async {
-                  try {
-                    await FirebaseFirestore.instance
-                        .collection(AppConstants.adminNotificationsCollection)
-                        .doc(notificationId)
-                        .delete();
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Notification cleared'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Failed to clear notification: $e'),
-                          backgroundColor: Colors.redAccent,
-                        ),
-                      );
-                    }
-                  }
-                },
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => AdminOrderDetailScreen(
-                          notificationId: notificationId,
-                          customerName: customerName,
-                          customerEmail: customerEmail,
-                          productName: productName,
-                          productPrice: price,
-                          productImageUrl: _text(data['productImageUrl']),
-                          orderedAt: _text(data['orderedAt']),
-                          deliveryDate: _text(data['deliveryDate']),
-                          status: status,
-                          customerId: _text(data['customerId']),
-                        ),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppTheme.borderGray),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 18,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: AppTheme.primaryLight,
-                                borderRadius: BorderRadius.circular(14),
+                      direction: DismissDirection.endToStart,
+                      confirmDismiss: (_) async {
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (dialogContext) => AlertDialog(
+                            title: const Text('Delete Notification'),
+                            content: const Text(
+                              'Are you sure you want to clear this notification?',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(dialogContext, false),
+                                child: const Text('Cancel'),
                               ),
-                              child: const Icon(
-                                Icons.shopping_bag_outlined,
-                                color: AppTheme.primary,
+                              TextButton(
+                                onPressed: () => Navigator.pop(dialogContext, true),
+                                child: const Text(
+                                  'Delete',
+                                  style: TextStyle(color: Colors.redAccent),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                        return confirmed == true;
+                      },
+                      onDismissed: (_) async {
+                        try {
+                          await FirebaseFirestore.instance
+                              .collection(AppConstants.adminNotificationsCollection)
+                              .doc(notificationId)
+                              .delete();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Notification cleared'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to clear notification: $e'),
+                                backgroundColor: Colors.redAccent,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => AdminOrderDetailScreen(
+                                notificationId: notificationId,
+                                customerName: customerName,
+                                customerEmail: customerEmail,
+                                productName: productName,
+                                productPrice: price,
+                                productImageUrl: _text(data['productImageUrl']),
+                                orderedAt: _text(data['orderedAt']),
+                                deliveryDate: _text(data['deliveryDate']),
+                                status: status,
+                                customerId: _text(data['customerId']),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            color: isUnread ? const Color(0xFFFFFCF2) : Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isUnread
+                                  ? AppTheme.primary.withValues(alpha: 0.45)
+                                  : AppTheme.borderGray,
+                              width: isUnread ? 1.3 : 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 18,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
                                 children: [
-                                  Text(
-                                    productName,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppTheme.textDark,
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primaryLight,
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    child: const Icon(
+                                      Icons.shopping_bag_outlined,
+                                      color: AppTheme.primary,
                                     ),
                                   ),
-                                  const SizedBox(height: 4),
-                                  const Text(
-                                    'Customer order received',
-                                    style: TextStyle(
-                                      color: AppTheme.textGray,
-                                      fontSize: 12,
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                productName,
+                                                style: const TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: AppTheme.textDark,
+                                                ),
+                                              ),
+                                            ),
+                                            if (isUnread)
+                                              Container(
+                                                width: 10,
+                                                height: 10,
+                                                decoration: const BoxDecoration(
+                                                  color: AppTheme.primary,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        const Text(
+                                          'Customer order received',
+                                          style: TextStyle(
+                                            color: AppTheme.textGray,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.green.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                      status,
+                                      style: const TextStyle(
+                                        color: AppTheme.green,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 11,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppTheme.green.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Text(
-                                status,
-                                style: const TextStyle(
-                                  color: AppTheme.green,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        _InfoRow(label: 'Customer', value: customerName),
-                        _InfoRow(label: 'Email', value: customerEmail),
-                        _InfoRow(label: 'Item', value: productName),
-                        _InfoRow(label: 'Price', value: '\$$price'),
-                        _InfoRow(label: 'Created At', value: createdAt),
-                        if (billSlipUrl.isNotEmpty) ...[
-                          const SizedBox(height: 10),
-                          const Text(
-                            'Bill Slip',
-                            style: TextStyle(
-                              color: AppTheme.textGray,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: CachedNetworkImage(
-                              imageUrl: billSlipUrl,
-                              height: 120,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              errorWidget: (_, __, ___) => Container(
-                                height: 120,
-                                color: AppTheme.bgGray,
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.image_not_supported_outlined,
+                              const SizedBox(height: 16),
+                              _InfoRow(label: 'Customer', value: customerName),
+                              _InfoRow(label: 'Email', value: customerEmail),
+                              _InfoRow(label: 'Item', value: productName),
+                              _InfoRow(label: 'Price', value: '\$$price'),
+                              _InfoRow(label: 'Created At', value: createdAt),
+                              if (billSlipUrl.isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                const Text(
+                                  'Bill Slip',
+                                  style: TextStyle(
+                                    color: AppTheme.textGray,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
                                   ),
                                 ),
-                              ),
-                            ),
+                                const SizedBox(height: 8),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: CachedNetworkImage(
+                                    imageUrl: billSlipUrl,
+                                    height: 120,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                    errorWidget: (_, __, ___) => Container(
+                                      height: 120,
+                                      color: AppTheme.bgGray,
+                                      child: const Center(
+                                        child: Icon(
+                                          Icons.image_not_supported_outlined,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
-                        ],
-                      ],
-                    ),
-                  ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
+                ),
+              ],
               );
-            },
-          );
-        },
-      ),
-    );
+          },
+          ),
+        );
   }
 }
 
