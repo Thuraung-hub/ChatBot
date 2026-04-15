@@ -6,7 +6,9 @@ import '../app_theme.dart';
 import '../providers/chat_provider.dart';
 import '../services/auth_service.dart';
 import '../services/gemini_client.dart';
+import '../services/manual_reply_service.dart';
 import '../services/monitoring_service.dart';
+import '../utils/responsive.dart';
 import '../widgets/chat_input_bar.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -21,6 +23,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   late final ChatProvider _chatProvider;
+  final ManualReplyService _manualReplyService = ManualReplyService();
   bool _sending = false;
   bool _showTypingIndicator = false;
   int _lastMessageCount = 0;
@@ -400,12 +403,15 @@ class _ChatScreenState extends State<ChatScreen> {
 
   /// BOT REPLY FUNCTION
   Future<void> _botReply(String message, String uid, String userName) async {
+    final manualReply = await _manualReplyService.findMatchingReply(message);
     final quickReply = _buildQuickLocalReply(message, userName);
-    final catalogReply = quickReply == null ? await _buildCatalogReply(message) : null;
+    final catalogReply = manualReply == null && quickReply == null
+        ? await _buildCatalogReply(message)
+        : null;
     String reply;
 
-    if (quickReply != null || catalogReply != null) {
-      reply = quickReply ?? catalogReply!;
+    if (manualReply != null || quickReply != null || catalogReply != null) {
+      reply = manualReply ?? quickReply ?? catalogReply!;
     } else {
       if (mounted) {
         setState(() => _showTypingIndicator = true);
@@ -500,6 +506,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
     final myUid = auth.user?.uid ?? '';
+    final isMobile = context.isMobile;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B1020),
@@ -507,7 +514,10 @@ class _ChatScreenState extends State<ChatScreen> {
         backgroundColor: const Color(0xFF10182A),
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Text('Shop Assistant'),
+        title: Text(
+          'Shop Assistant',
+          style: TextStyle(fontSize: isMobile ? 18 : 20, fontWeight: FontWeight.w800),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => Navigator.pop(context),
@@ -576,7 +586,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
                 return ListView.builder(
                   controller: _scrollController,
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(isMobile ? 12 : 16),
                   itemCount: docs.length + (_showTypingIndicator ? 1 : 0),
                   itemBuilder: (context, i) {
                     if (_showTypingIndicator && i == docs.length) {
@@ -624,12 +634,14 @@ class _MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = context.isMobile;
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        constraints:
-            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
+        margin: EdgeInsets.only(bottom: isMobile ? 10 : 12),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * (isMobile ? 0.86 : 0.72),
+        ),
         child: Column(
           crossAxisAlignment:
               isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -639,15 +651,15 @@ class _MessageBubble extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 4, bottom: 4),
                 child: Text(
                   userName,
-                  style: const TextStyle(
-                    fontSize: 11,
+                  style: TextStyle(
+                    fontSize: isMobile ? 10 : 11,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.textGray,
                   ),
                 ),
               ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 14 : 16, vertical: isMobile ? 10 : 12),
               decoration: BoxDecoration(
                 color: isMe ? AppTheme.primary : const Color(0xFF18243A),
                 borderRadius: BorderRadius.only(
@@ -662,9 +674,9 @@ class _MessageBubble extends StatelessWidget {
               ),
               child: Text(
                 text,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 14,
+                  fontSize: isMobile ? 13 : 14,
                   height: 1.4,
                 ),
               ),

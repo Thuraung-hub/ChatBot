@@ -11,6 +11,7 @@ import '../models/cart_item.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/auth_service.dart';
 import '../services/monitoring_service.dart';
+import '../utils/responsive.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
@@ -19,6 +20,7 @@ class CartScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final uid = context.read<AuthService>().user?.uid;
     if (uid == null) return const SizedBox.shrink();
+    final listPadding = context.responsivePadding;
 
     return Scaffold(
       appBar: AppBar(
@@ -53,9 +55,9 @@ class CartScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: ListView.separated(
-                  padding: const EdgeInsets.all(20),
+                  padding: EdgeInsets.all(listPadding),
                   itemCount: items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  separatorBuilder: (_, __) => SizedBox(height: context.isMobile ? 10 : 12),
                   itemBuilder: (context, i) =>
                       _CartItemTile(item: items[i], uid: uid),
                 ),
@@ -94,11 +96,13 @@ class _CartItemTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = context.isMobile;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isMobile ? 12 : 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
         border: Border.all(color: AppTheme.borderGray),
         boxShadow: [
           BoxShadow(
@@ -114,8 +118,8 @@ class _CartItemTile extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(14),
             child: SizedBox(
-              width: 84,
-              height: 84,
+              width: isMobile ? 72 : 84,
+              height: isMobile ? 72 : 84,
               child: CachedNetworkImage(
                 imageUrl: item.productImageUrl,
                 fit: BoxFit.cover,
@@ -126,7 +130,7 @@ class _CartItemTile extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: isMobile ? 10 : 14),
 
           // Details
           Expanded(
@@ -138,9 +142,9 @@ class _CartItemTile extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(item.productName,
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontWeight: FontWeight.w700,
-                              fontSize: 15,
+                            fontSize: isMobile ? 14 : 15,
                               color: AppTheme.dark),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis),
@@ -154,13 +158,14 @@ class _CartItemTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text('\$${item.productPrice.toStringAsFixed(2)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: AppTheme.primary,
                         fontWeight: FontWeight.w800,
-                        fontSize: 16)),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        fontSize: isMobile ? 15 : 16)),
+                SizedBox(height: isMobile ? 10 : 12),
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  runSpacing: 8,
                   children: [
                     // Quantity controls
                     Container(
@@ -174,11 +179,11 @@ class _CartItemTile extends StatelessWidget {
                           _QtyBtn(
                               icon: Icons.remove, onTap: () => _updateQty(-1)),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 12),
                             child: Text('${item.quantity}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontWeight: FontWeight.w700,
-                                    fontSize: 15,
+                                    fontSize: isMobile ? 14 : 15,
                                     color: AppTheme.dark)),
                           ),
                           _QtyBtn(icon: Icons.add, onTap: () => _updateQty(1)),
@@ -186,10 +191,10 @@ class _CartItemTile extends StatelessWidget {
                       ),
                     ),
                     Text('Subtotal: \$${item.subtotal.toStringAsFixed(2)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: AppTheme.dark,
                             fontWeight: FontWeight.w600,
-                            fontSize: 13)),
+                            fontSize: isMobile ? 12 : 13)),
                   ],
                 ),
               ],
@@ -522,12 +527,13 @@ class _OrderSummaryState extends State<_OrderSummary> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = context.isMobile;
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-      padding: const EdgeInsets.all(20),
+      margin: EdgeInsets.fromLTRB(context.responsivePadding, 0, context.responsivePadding, context.responsivePadding),
+      padding: EdgeInsets.all(isMobile ? 16 : 20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(isMobile ? 18 : 24),
         border: Border.all(color: AppTheme.borderGray),
         boxShadow: [
           BoxShadow(
@@ -553,19 +559,19 @@ class _OrderSummaryState extends State<_OrderSummary> {
                   child: const Icon(Icons.local_shipping_outlined,
                       color: AppTheme.primary, size: 18),
                 ),
-                const SizedBox(width: 12),
-                const Expanded(
+                  SizedBox(width: isMobile ? 10 : 12),
+                  Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Order summary',
+                        Text('Order summary',
                           style: TextStyle(
-                              fontSize: 18,
+                                fontSize: isMobile ? 16 : 18,
                               fontWeight: FontWeight.w900,
                               color: AppTheme.dark)),
-                      SizedBox(height: 2),
-                      Text('Free shipping and fast checkout are included.',
-                          style: TextStyle(color: AppTheme.textGray, fontSize: 13)),
+                        const SizedBox(height: 2),
+                        Text('Free shipping and fast checkout are included.',
+                            style: TextStyle(color: AppTheme.textGray, fontSize: isMobile ? 12 : 13)),
                     ],
                   ),
                 ),
@@ -586,12 +592,12 @@ class _OrderSummaryState extends State<_OrderSummary> {
               children: [
                 const Text('Total',
                     style: TextStyle(
-                        fontSize: 18,
+                    fontSize: 18,
                         fontWeight: FontWeight.w900,
                         color: AppTheme.dark)),
                 Text('\$${widget.total.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                        fontSize: 28,
+                  style: TextStyle(
+                    fontSize: isMobile ? 24 : 28,
                         fontWeight: FontWeight.w900,
                         color: AppTheme.primary)),
               ],
@@ -705,14 +711,15 @@ class _EmptyCart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = context.isMobile;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(40),
+        padding: EdgeInsets.all(isMobile ? 24 : 40),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(28),
+              padding: EdgeInsets.all(isMobile ? 20 : 28),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(28),
@@ -728,19 +735,19 @@ class _EmptyCart extends StatelessWidget {
               child: const Icon(Icons.shopping_bag_outlined,
                   size: 64, color: AppTheme.primary),
             ),
-            const SizedBox(height: 24),
-            const Text('Your cart is empty',
+            SizedBox(height: isMobile ? 20 : 24),
+            Text('Your cart is empty',
                 style: TextStyle(
-                    fontSize: 24,
+                    fontSize: isMobile ? 20 : 24,
                     fontWeight: FontWeight.w900,
                     color: AppTheme.dark)),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               "Looks like you haven't added anything yet. Browse the catalog or ask the assistant for help choosing a product.",
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppTheme.textGray, height: 1.5),
+              style: TextStyle(color: AppTheme.textGray, height: 1.5, fontSize: isMobile ? 13 : 14),
             ),
-            const SizedBox(height: 32),
+            SizedBox(height: isMobile ? 24 : 32),
             ElevatedButton.icon(
               onPressed: () =>
                   Navigator.pushReplacementNamed(context, Routes.home.path),

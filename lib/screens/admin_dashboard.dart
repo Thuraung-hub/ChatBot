@@ -6,6 +6,8 @@ import '../config/app_constants.dart';
 import '../config/app_validators.dart';
 import '../app_theme.dart';
 import '../services/auth_service.dart';
+import '../services/manual_reply_service.dart';
+import '../utils/responsive.dart';
 import '../widgets/rbac_visibility.dart';
 import '../widgets/app_dialogs.dart';
 
@@ -42,12 +44,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
   final _reviewCtrl = TextEditingController();
   final _subAdminEmailCtrl = TextEditingController();
   final _subAdminNameCtrl = TextEditingController();
+  final _manualKeywordCtrl = TextEditingController();
+  final _manualReplyCtrl = TextEditingController();
+  final _manualReplyFormKey = GlobalKey<FormState>();
+  final ManualReplyService _manualReplyService = ManualReplyService();
 
   bool _loading = false;
   bool _subAdminLoading = false;
+  bool _manualReplyLoading = false;
   bool _success = false;
   String? _newProductId;
   bool _showSuccessDialog = false;
+  String? _editingManualReplyId;
 
   @override
   void dispose() {
@@ -59,7 +67,107 @@ class _AdminDashboardState extends State<AdminDashboard> {
     _reviewCtrl.dispose();
     _subAdminEmailCtrl.dispose();
     _subAdminNameCtrl.dispose();
+    _manualKeywordCtrl.dispose();
+    _manualReplyCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveManualReply(AuthService auth) async {
+    if (!(_manualReplyFormKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
+    final role = (auth.profile?.role ?? AppConstants.subAdminRole).trim();
+    final keyword = _manualKeywordCtrl.text.trim();
+    final reply = _manualReplyCtrl.text.trim();
+    final isEditing = _editingManualReplyId != null;
+
+    setState(() => _manualReplyLoading = true);
+
+    try {
+      if (_editingManualReplyId == null) {
+        await _manualReplyService.createReply(
+          keyword: keyword,
+          reply: reply,
+          createdBy: role,
+        );
+      } else {
+        await _manualReplyService.updateReply(
+          _editingManualReplyId!,
+          keyword: keyword,
+          reply: reply,
+          createdBy: role,
+        );
+      }
+
+      _manualKeywordCtrl.clear();
+      _manualReplyCtrl.clear();
+      _editingManualReplyId = null;
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isEditing
+                ? 'Manual reply updated.'
+                : 'Manual reply saved.',
+          ),
+          backgroundColor: AppTheme.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to save manual reply: $e'),
+          backgroundColor: AppTheme.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _manualReplyLoading = false);
+      }
+    }
+  }
+
+  void _beginManualReplyEdit(String id, Map<String, dynamic> data) {
+    setState(() {
+      _editingManualReplyId = id;
+      _manualKeywordCtrl.text = (data['keyword'] ?? '').toString();
+      _manualReplyCtrl.text = (data['reply'] ?? '').toString();
+    });
+  }
+
+  Future<void> _deleteManualReply(String id) async {
+    final confirmed = await AppDialog.showConfirmationDialog(
+      context,
+      title: 'Delete Manual Reply',
+      message: 'Are you sure you want to delete this manual reply?',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      isDestructive: true,
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await _manualReplyService.deleteReply(id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Manual reply deleted.'),
+          backgroundColor: AppTheme.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete manual reply: $e'),
+          backgroundColor: AppTheme.red,
+        ),
+      );
+    }
   }
 
   Future<void> _handleAddSubAdmin() async {
@@ -275,6 +383,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final auth = context.watch<AuthService>();
     final isAdmin = auth.isAdmin;
     final isStrictAdmin = auth.profile?.role == AppConstants.adminRole;
+    final isMobile = context.isMobile;
+    final horizontalPadding = context.responsivePadding;
 
     return Scaffold(
       appBar: AppBar(
@@ -287,7 +397,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(horizontalPadding),
             child: Form(
               key: _formKey,
               autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -295,16 +405,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Header
-                  const Text('Admin Dashboard',
+                    Text('Admin Dashboard',
                       style: TextStyle(
-                          fontSize: 30,
-                          fontWeight: FontWeight.w900,
-                        color: AppTheme.textDark)),
+                        fontSize: isMobile ? 24 : 30,
+                        fontWeight: FontWeight.w900,
+                      color: AppTheme.textDark)),
                   const SizedBox(height: 4),
-                  const Text(
+                    Text(
                       'Manage your store inventory and add new products.',
-                      style: TextStyle(color: AppTheme.textDark, fontSize: 15)),
-                  const SizedBox(height: 28),
+                      style: TextStyle(color: AppTheme.textDark, fontSize: isMobile ? 14 : 15)),
+                    SizedBox(height: isMobile ? 20 : 28),
 
                   // Form card
                   Container(
@@ -320,7 +430,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         ),
                       ],
                     ),
-                    padding: const EdgeInsets.all(24),
+                    padding: EdgeInsets.all(isMobile ? 16 : 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -368,29 +478,49 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           ),
                           const SizedBox(height: 20),
                         ],
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _FormField(
-                                controller: _nameCtrl,
-                                label: 'Product Name *',
-                                hint: 'e.g. Wireless Mouse',
-                                icon: Icons.inventory_2_outlined,
-                                validator: AppValidators.productName,
+                        isMobile
+                            ? Column(
+                                children: [
+                                  _FormField(
+                                    controller: _nameCtrl,
+                                    label: 'Product Name *',
+                                    hint: 'e.g. Wireless Mouse',
+                                    icon: Icons.inventory_2_outlined,
+                                    validator: AppValidators.productName,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _FormField(
+                                    controller: _categoryCtrl,
+                                    label: 'Category *',
+                                    hint: 'e.g. Electronics',
+                                    icon: Icons.label_outline_rounded,
+                                    validator: AppValidators.category,
+                                  ),
+                                ],
+                              )
+                            : Row(
+                                children: [
+                                  Expanded(
+                                    child: _FormField(
+                                      controller: _nameCtrl,
+                                      label: 'Product Name *',
+                                      hint: 'e.g. Wireless Mouse',
+                                      icon: Icons.inventory_2_outlined,
+                                      validator: AppValidators.productName,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: _FormField(
+                                      controller: _categoryCtrl,
+                                      label: 'Category *',
+                                      hint: 'e.g. Electronics',
+                                      icon: Icons.label_outline_rounded,
+                                      validator: AppValidators.category,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: _FormField(
-                                controller: _categoryCtrl,
-                                label: 'Category *',
-                                hint: 'e.g. Electronics',
-                                icon: Icons.label_outline_rounded,
-                                validator: AppValidators.category,
-                              ),
-                            ),
-                          ],
-                        ),
                         const SizedBox(height: 16),
                         _FormField(
                           controller: _priceCtrl,
@@ -425,8 +555,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
                                   child: SizedBox(
-                                    width: 72,
-                                    height: 72,
+                                    width: isMobile ? 60 : 72,
+                                    height: isMobile ? 60 : 72,
                                     child: CachedNetworkImage(
                                       imageUrl: _imageCtrl.text,
                                       fit: BoxFit.cover,
@@ -439,7 +569,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 14),
+                                SizedBox(width: isMobile ? 10 : 14),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
@@ -494,7 +624,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           maxLines: 3,
                           validator: AppValidators.review,
                         ),
-                        const SizedBox(height: 24),
+                        SizedBox(height: isMobile ? 20 : 24),
                         RbacVisibility(
                           isAdmin: isAdmin,
                           child: SizedBox(
@@ -533,7 +663,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(color: AppTheme.borderGray),
                       ),
-                      padding: const EdgeInsets.all(24),
+                      padding: EdgeInsets.all(isMobile ? 16 : 24),
                       child: Form(
                         key: _subAdminFormKey,
                         autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -666,8 +796,223 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   ],
 
                   Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: AppTheme.borderGray),
+                    ),
+                    padding: EdgeInsets.all(isMobile ? 16 : 24),
+                    child: Form(
+                      key: _manualReplyFormKey,
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryLight,
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: const Icon(
+                                  Icons.quickreply_outlined,
+                                  color: AppTheme.primary,
+                                  size: 22,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Expanded(
+                                child: Text(
+                                  'Manual Chat Replies',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.textDark,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Define keyword-based replies. Example: keyword "hello" reply "Hi there!"',
+                            style: TextStyle(
+                              color: AppTheme.textDark,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          _FormField(
+                            controller: _manualKeywordCtrl,
+                            label: 'Keyword *',
+                            hint: 'e.g. hey, hello, how are you',
+                            icon: Icons.tag_rounded,
+                            validator: (value) {
+                              final v = (value ?? '').trim();
+                              if (v.isEmpty) return 'Keyword is required.';
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 14),
+                          _FormField(
+                            controller: _manualReplyCtrl,
+                            label: 'Reply Message *',
+                            hint: 'Hi there! How can I help you?',
+                            icon: Icons.message_outlined,
+                            maxLines: 3,
+                            validator: (value) {
+                              final v = (value ?? '').trim();
+                              if (v.isEmpty) return 'Reply message is required.';
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 14),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: _manualReplyLoading
+                                      ? null
+                                      : () => _saveManualReply(auth),
+                                  icon: _manualReplyLoading
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : Icon(_editingManualReplyId == null
+                                          ? Icons.save_outlined
+                                          : Icons.edit_outlined),
+                                  label: Text(
+                                    _editingManualReplyId == null
+                                        ? 'Save Reply'
+                                        : 'Update Reply',
+                                  ),
+                                ),
+                              ),
+                              if (_editingManualReplyId != null) ...[
+                                const SizedBox(width: 10),
+                                OutlinedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _editingManualReplyId = null;
+                                      _manualKeywordCtrl.clear();
+                                      _manualReplyCtrl.clear();
+                                    });
+                                  },
+                                  child: const Text('Cancel Edit'),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                            stream: _manualReplyService.watchReplies(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 20),
+                                  child: Center(
+                                    child: CircularProgressIndicator(color: AppTheme.primary),
+                                  ),
+                                );
+                              }
+
+                              final docs = snapshot.data?.docs ?? [];
+                              if (docs.isEmpty) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 8),
+                                  child: Text(
+                                    'No manual replies yet. Add your first keyword reply above.',
+                                    style: TextStyle(color: AppTheme.textGray),
+                                  ),
+                                );
+                              }
+
+                              return ListView.separated(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: docs.length,
+                                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                                itemBuilder: (context, index) {
+                                  final doc = docs[index];
+                                  final data = doc.data();
+                                  final keyword = (data['keyword'] ?? '').toString();
+                                  final reply = (data['reply'] ?? '').toString();
+                                  final createdBy = (data['createdBy'] ?? '-').toString();
+
+                                  return Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.bgGray,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: AppTheme.borderGray),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                'Keyword: $keyword',
+                                                style: const TextStyle(
+                                                  color: AppTheme.textDark,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+                                            ),
+                                            IconButton(
+                                              onPressed: () => _beginManualReplyEdit(doc.id, data),
+                                              icon: const Icon(Icons.edit_outlined, size: 20),
+                                              tooltip: 'Edit',
+                                            ),
+                                            IconButton(
+                                              onPressed: () => _deleteManualReply(doc.id),
+                                              icon: const Icon(Icons.delete_outline_rounded, color: AppTheme.red, size: 20),
+                                              tooltip: 'Delete',
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          reply,
+                                          style: const TextStyle(
+                                            color: AppTheme.textDark,
+                                            height: 1.4,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          'Created by: $createdBy',
+                                          style: const TextStyle(
+                                            color: AppTheme.textGray,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(24),
+                    padding: EdgeInsets.all(isMobile ? 16 : 24),
                     decoration: BoxDecoration(
                       color: AppTheme.primary,
                       borderRadius: BorderRadius.circular(24),
@@ -805,12 +1150,14 @@ class _SuccessDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = context.isMobile;
     return Container(
       color: Colors.black54,
       child: Center(
         child: Container(
-          margin: const EdgeInsets.all(32),
-          padding: const EdgeInsets.all(32),
+          margin: EdgeInsets.all(isMobile ? 16 : 32),
+          padding: EdgeInsets.all(isMobile ? 20 : 32),
+          constraints: const BoxConstraints(maxWidth: 520),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(28),
@@ -835,9 +1182,9 @@ class _SuccessDialog extends StatelessWidget {
                     color: AppTheme.green, size: 44),
               ),
               const SizedBox(height: 20),
-              const Text('Product Added!',
+                Text('Product Added!',
                   style: TextStyle(
-                      fontSize: 24,
+                    fontSize: isMobile ? 20 : 24,
                       fontWeight: FontWeight.w900,
                     color: AppTheme.textDark)),
               const SizedBox(height: 8),

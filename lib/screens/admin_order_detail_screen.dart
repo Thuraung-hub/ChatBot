@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
+import '../utils/responsive.dart';
 
 class AdminOrderDetailScreen extends StatefulWidget {
   final String notificationId;
@@ -64,6 +65,9 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = context.isMobile;
+    final pagePadding = context.responsivePadding;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Order Details'),
@@ -78,27 +82,27 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
           final billSlipUrl = snapshot.data;
 
           return ListView(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(pagePadding),
             children: [
               if (widget.productImageUrl.isNotEmpty)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(24),
                   child: CachedNetworkImage(
                     imageUrl: widget.productImageUrl,
-                    height: 240,
+                    height: isMobile ? 200 : 240,
                     width: double.infinity,
                     fit: BoxFit.cover,
                     errorWidget: (_, __, ___) => Container(
-                      height: 240,
+                      height: isMobile ? 200 : 240,
                       color: AppTheme.bgGray,
                       child: const Icon(Icons.image_not_supported_outlined),
                     ),
                   ),
                 ),
               if (widget.productImageUrl.isNotEmpty)
-                const SizedBox(height: 18),
+                SizedBox(height: isMobile ? 14 : 18),
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: EdgeInsets.all(isMobile ? 16 : 20),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
@@ -109,8 +113,8 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                   children: [
                     Text(
                       widget.productName,
-                      style: const TextStyle(
-                        fontSize: 24,
+                      style: TextStyle(
+                        fontSize: isMobile ? 20 : 24,
                         fontWeight: FontWeight.w900,
                         color: AppTheme.textDark,
                       ),
@@ -118,8 +122,8 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                     const SizedBox(height: 8),
                     Text(
                       '\$${widget.productPrice}',
-                      style: const TextStyle(
-                        fontSize: 18,
+                      style: TextStyle(
+                        fontSize: isMobile ? 16 : 18,
                         fontWeight: FontWeight.w800,
                         color: AppTheme.primary,
                       ),
@@ -139,9 +143,9 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                 ),
               ),
               if (billSlipUrl != null) ...[
-                const SizedBox(height: 18),
+                SizedBox(height: isMobile ? 14 : 18),
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  padding: EdgeInsets.all(isMobile ? 16 : 20),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(24),

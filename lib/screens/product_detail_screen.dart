@@ -14,6 +14,7 @@ import '../models/product.dart';
 import '../models/user_profile.dart';
 import '../services/auth_service.dart';
 import '../services/monitoring_service.dart';
+import '../utils/responsive.dart';
 import '../widgets/app_dialogs.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -269,6 +270,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
+    final isMobile = context.isMobile;
+    final isTablet = context.isTablet;
 
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
@@ -297,7 +300,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               : SafeArea(
                   top: false,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 12 : 16,
+                        vertical: isMobile ? 10 : 12),
                     decoration: BoxDecoration(
                       color: AppTheme.surface,
                       border: Border(
@@ -387,10 +392,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             slivers: [
               // Hero image app bar
               SliverAppBar(
-                expandedHeight: 360,
+                expandedHeight: isMobile ? 280 : (isTablet ? 320 : 360),
                 pinned: true,
                 leading: Padding(
-                  padding: const EdgeInsets.all(8),
+                  padding: EdgeInsets.all(isMobile ? 6 : 8),
                   child: CircleAvatar(
                     backgroundColor: Colors.white.withValues(alpha: 0.9),
                     child: IconButton(
@@ -403,7 +408,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 actions: [
                   if (auth.isAdmin) ...[
                     Padding(
-                      padding: const EdgeInsets.all(8),
+                      padding: EdgeInsets.all(isMobile ? 6 : 8),
                       child: CircleAvatar(
                         backgroundColor: Colors.white.withValues(alpha: 0.9),
                         child: IconButton(
@@ -414,7 +419,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.all(8),
+                      padding: EdgeInsets.all(isMobile ? 6 : 8),
                       child: CircleAvatar(
                         backgroundColor: Colors.white.withValues(alpha: 0.9),
                         child: IconButton(
@@ -441,7 +446,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: EdgeInsets.all(isMobile ? 16 : 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -454,45 +459,47 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(product.category.toUpperCase(),
-                            style: const TextStyle(
-                                fontSize: 11,
+                          style: TextStyle(
+                            fontSize: isMobile ? 10 : 11,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white,
                                 letterSpacing: 0.8)),
                       ),
                       const SizedBox(height: 12),
 
-                      Text(product.name,
-                          style: const TextStyle(
-                              fontSize: 28,
+                        Text(product.name,
+                          style: TextStyle(
+                            fontSize: isMobile ? 24 : 28,
                               fontWeight: FontWeight.w900,
                               color: Colors.white,
                               height: 1.1)),
                       const SizedBox(height: 8),
-                      Text('\$${product.price.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                              fontSize: 32,
+                        Text('\$${product.price.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: isMobile ? 28 : 32,
                               fontWeight: FontWeight.w900,
                               color: Colors.white)),
                       const SizedBox(height: 16),
-                      Text(product.description,
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 15, height: 1.6)),
+                        Text(product.description,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: isMobile ? 14 : 15,
+                            height: 1.6)),
 
                       // Trust badges
                       const SizedBox(height: 24),
-                      const Row(
+                        Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
                         children: [
                           _Badge(
                               icon: Icons.star_rounded,
                               text: 'Top Rated',
                               color: Colors.amber),
-                          SizedBox(width: 12),
                           _Badge(
                               icon: Icons.local_shipping_outlined,
                               text: 'Free Shipping',
                               color: AppTheme.green),
-                          SizedBox(width: 12),
                           _Badge(
                               icon: Icons.shield_outlined,
                               text: 'Secure',
@@ -502,9 +509,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
                       // Comments section
                       const SizedBox(height: 40),
-                      const Text('Reviews & Comments',
+                        Text('Reviews & Comments',
                           style: TextStyle(
-                              fontSize: 20,
+                            fontSize: isMobile ? 18 : 20,
                               fontWeight: FontWeight.w900,
                               color: AppTheme.textGray)),
                       const SizedBox(height: 16),
@@ -514,42 +521,80 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         Form(
                           key: _commentFormKey,
                           autovalidateMode: AutovalidateMode.onUserInteraction,
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: TextFormField(
-                                  controller: _commentController,
-                                  validator: AppValidators.comment,
-                                  decoration: const InputDecoration(
-                                    hintText: 'Write a comment...',
-                                    prefixIcon: Icon(
-                                        Icons.chat_bubble_outline_rounded,
-                                        color: AppTheme.textGray),
-                                  ),
+                          child: isMobile
+                              ? Column(
+                                  children: [
+                                    TextFormField(
+                                      controller: _commentController,
+                                      validator: AppValidators.comment,
+                                      decoration: const InputDecoration(
+                                        hintText: 'Write a comment...',
+                                        prefixIcon: Icon(
+                                            Icons.chat_bubble_outline_rounded,
+                                            color: AppTheme.textGray),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton.icon(
+                                        onPressed: (_postingComment ||
+                                                auth.profile == null)
+                                            ? null
+                                            : () => _postComment(
+                                                context, auth.profile!),
+                                        icon: _postingComment
+                                            ? const SizedBox(
+                                                width: 18,
+                                                height: 18,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                        color: Colors.white,
+                                                        strokeWidth: 2))
+                                            : const Icon(Icons.send_rounded,
+                                                size: 20),
+                                        label: const Text('Post Comment'),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextFormField(
+                                        controller: _commentController,
+                                        validator: AppValidators.comment,
+                                        decoration: const InputDecoration(
+                                          hintText: 'Write a comment...',
+                                          prefixIcon: Icon(
+                                              Icons.chat_bubble_outline_rounded,
+                                              color: AppTheme.textGray),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    ElevatedButton(
+                                      onPressed: (_postingComment ||
+                                              auth.profile == null)
+                                          ? null
+                                          : () =>
+                                              _postComment(context, auth.profile!),
+                                      style: ElevatedButton.styleFrom(
+                                        padding: const EdgeInsets.all(16),
+                                        minimumSize: const Size(0, 0),
+                                      ),
+                                      child: _postingComment
+                                          ? const SizedBox(
+                                              width: 18,
+                                              height: 18,
+                                              child: CircularProgressIndicator(
+                                                  color: Colors.white,
+                                                  strokeWidth: 2))
+                                          : const Icon(Icons.send_rounded,
+                                              size: 20),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              const SizedBox(width: 10),
-                              ElevatedButton(
-                                onPressed: (_postingComment ||
-                                        auth.profile == null)
-                                    ? null
-                                    : () =>
-                                        _postComment(context, auth.profile!),
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.all(16),
-                                  minimumSize: const Size(0, 0),
-                                ),
-                                child: _postingComment
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                            color: Colors.white,
-                                            strokeWidth: 2))
-                                    : const Icon(Icons.send_rounded, size: 20),
-                              ),
-                            ],
-                          ),
                         ),
                         const SizedBox(height: 16),
                       ],

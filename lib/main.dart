@@ -212,13 +212,27 @@ class _PinkyShopAppState extends State<PinkyShopApp> {
         onGenerateRoute: _generateRoute,
         builder: (context, child) {
           if (child == null) return const SizedBox.shrink();
-          if (!_isOffline) return child;
+
+          final mediaQuery = MediaQuery.of(context);
+          final width = mediaQuery.size.width;
+          final minScale = width < 360 ? 0.92 : 1.0;
+          final maxScale = width >= 1200 ? 1.2 : 1.1;
+
+          final responsiveChild = MediaQuery(
+            data: mediaQuery.copyWith(
+              textScaler:
+                  mediaQuery.textScaler.clamp(minScaleFactor: minScale, maxScaleFactor: maxScale),
+            ),
+            child: child,
+          );
+
+          if (!_isOffline) return responsiveChild;
 
           return PopScope(
             canPop: false,
             child: Stack(
               children: [
-                child,
+                responsiveChild,
                 Positioned.fill(
                   child: OfflineScreen(onRetry: _refreshConnectivity),
                 ),

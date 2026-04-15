@@ -21,15 +21,14 @@ class ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isAdmin = context.watch<AuthService>().isAdmin;
+    final isCompact = MediaQuery.of(context).size.width < 420;
 
     return GestureDetector(
       onTap: () => Navigator.pushNamed(context, Routes.product.path,
           arguments: product.id),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppTheme.borderGray),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -38,6 +37,13 @@ class ProductCard extends StatelessWidget {
             ),
           ],
         ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: AppTheme.borderGray),
+            ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -74,12 +80,12 @@ class ProductCard extends StatelessWidget {
                 // Admin delete button
                 if (isAdmin && onDelete != null)
                   Positioned(
-                    top: 10,
-                    right: 10,
+                    top: isCompact ? 8 : 10,
+                    right: isCompact ? 8 : 10,
                     child: GestureDetector(
                       onTap: () => _showDeleteDialog(context),
                       child: Container(
-                        padding: const EdgeInsets.all(8),
+                        padding: EdgeInsets.all(isCompact ? 6 : 8),
                         decoration: BoxDecoration(
                           color: AppTheme.redLight,
                           borderRadius: BorderRadius.circular(12),
@@ -95,69 +101,83 @@ class ProductCard extends StatelessWidget {
             ),
 
             // Info
-            Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product.category.toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    product.name,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    product.description,
-                    style: const TextStyle(
-                        fontSize: 12, color: Colors.black, height: 1.4),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '\$${product.price.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.black,
-                        ),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.all(isCompact ? 10 : 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product.category.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: isCompact ? 9 : 10,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
+                        letterSpacing: 0.8,
                       ),
-                      GestureDetector(
-                        onTap: onAddToCart,
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: AppTheme.dark,
-                            borderRadius: BorderRadius.circular(12),
+                    ),
+                    SizedBox(height: isCompact ? 2 : 4),
+                    Text(
+                      product.name,
+                      style: TextStyle(
+                        fontSize: isCompact ? 14 : 15,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: isCompact ? 2 : 4),
+                    Expanded(
+                      child: Text(
+                        product.description,
+                        style: TextStyle(
+                            fontSize: isCompact ? 11 : 12,
+                            color: Colors.black,
+                            height: 1.35),
+                        maxLines: isCompact ? 1 : 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    SizedBox(height: isCompact ? 8 : 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '\$${product.price.toStringAsFixed(2)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: isCompact ? 16 : 18,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.black,
+                            ),
                           ),
-                          child: const Icon(Icons.add_rounded,
-                              color: Colors.white, size: 20),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: onAddToCart,
+                          child: Container(
+                            padding: EdgeInsets.all(isCompact ? 8 : 10),
+                            decoration: BoxDecoration(
+                              color: AppTheme.dark,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(Icons.add_rounded,
+                                color: Colors.white, size: isCompact ? 18 : 20),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
+        ),
+          ),
         ),
       ),
     );

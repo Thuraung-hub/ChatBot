@@ -6,6 +6,7 @@ import '../app_theme.dart';
 import '../models/product.dart';
 import '../services/auth_service.dart';
 import '../services/monitoring_service.dart';
+import '../utils/responsive.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/category_section_header.dart';
 import '../widgets/product_card.dart';
@@ -160,14 +161,22 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final horizontalPadding = context.responsivePadding;
+    final gridCount = context.isDesktop ? 4 : (context.isTablet ? 3 : 2);
+    final heroTitleSize = context.isMobile ? 22.0 : 26.0;
+    final isNarrowPhone = context.isMobile && screenWidth < 390;
+    final gridSpacing = isNarrowPhone ? 8.0 : (context.isMobile ? 10.0 : 12.0);
+    final gridAspectRatio = isNarrowPhone ? 0.58 : (context.isMobile ? 0.64 : 0.68);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.shopping_bag_rounded, color: AppTheme.primary, size: 28),
-            SizedBox(width: 8),
+            const Icon(Icons.shopping_bag_rounded, color: AppTheme.primary, size: 28),
+            const SizedBox(width: 8),
             Text('Pinky Shop',
-                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20)),
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: context.isMobile ? 18 : 20)),
           ],
         ),
         actions: [
@@ -206,15 +215,15 @@ class HomeScreen extends StatelessWidget {
 
           return Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1200),
+              constraints: BoxConstraints(maxWidth: context.isDesktop ? 1200 : 1000),
               child: CustomScrollView(
                 slivers: [
               // Header
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+                  padding: EdgeInsets.fromLTRB(horizontalPadding, 24, horizontalPadding, 0),
                   child: Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: EdgeInsets.all(context.isMobile ? 16 : 20),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [Color(0xFF111827), Color(0xFF1F2937)],
@@ -248,11 +257,11 @@ class HomeScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 12),
-                            const Expanded(
+                            Expanded(
                               child: Text(
                                 'Discover Products',
                                 style: TextStyle(
-                                  fontSize: 26,
+                                  fontSize: heroTitleSize,
                                   fontWeight: FontWeight.w900,
                                   color: Colors.white,
                                 ),
@@ -264,7 +273,7 @@ class HomeScreen extends StatelessWidget {
                         Text(
                           'Explore curated picks, ask the chat assistant about delivery or reviews, and move from browsing to checkout faster.',
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: context.isMobile ? 14 : 15,
                             height: 1.5,
                             color: Colors.white.withValues(alpha: 0.86),
                           ),
@@ -304,14 +313,14 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                   SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
                     sliver: SliverGrid(
                       gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 0.68,
+                          SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: gridCount,
+                        crossAxisSpacing: gridSpacing,
+                        mainAxisSpacing: gridSpacing,
+                        childAspectRatio: gridAspectRatio,
                       ),
                       delegate: SliverChildBuilderDelegate(
                         (context, i) {
@@ -332,7 +341,7 @@ class HomeScreen extends StatelessWidget {
               // Footer
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 40),
+                  padding: const EdgeInsets.symmetric(vertical: 32),
                   child: Center(
                     child: Text(
                       '© 2026 Pinky Shop. Built with Flutter.',

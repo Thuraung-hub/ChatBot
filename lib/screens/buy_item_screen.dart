@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../app_theme.dart';
+import '../utils/responsive.dart';
 
 class BuyItemScreen extends StatefulWidget {
   const BuyItemScreen({super.key});
@@ -87,6 +88,7 @@ class _BuyItemScreenState extends State<BuyItemScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
     final uid = auth.user?.uid;
+    final isMobile = context.isMobile;
 
     return Scaffold(
       appBar: AppBar(
@@ -131,7 +133,7 @@ class _BuyItemScreenState extends State<BuyItemScreen> {
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(context.responsivePadding),
                   itemCount: orders.length,
                   itemBuilder: (context, index) {
                     final data = orders[index].data() as Map<String, dynamic>;
@@ -143,11 +145,11 @@ class _BuyItemScreenState extends State<BuyItemScreen> {
                         _formatDate((data['deliveryDate'] ?? '').toString());
 
                     return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(14),
+                      margin: EdgeInsets.only(bottom: isMobile ? 10 : 12),
+                      padding: EdgeInsets.all(isMobile ? 12 : 14),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(isMobile ? 12 : 14),
                         border: Border.all(color: AppTheme.borderGray),
                       ),
                       child: Row(
@@ -157,8 +159,8 @@ class _BuyItemScreenState extends State<BuyItemScreen> {
                             borderRadius: BorderRadius.circular(10),
                             child: image.isEmpty
                                 ? Container(
-                                    width: 64,
-                                    height: 64,
+                                    width: isMobile ? 56 : 64,
+                                    height: isMobile ? 56 : 64,
                                     color: AppTheme.bgGray,
                                     child: const Icon(
                                       Icons.shopping_bag_outlined,
@@ -167,12 +169,12 @@ class _BuyItemScreenState extends State<BuyItemScreen> {
                                   )
                                 : Image.network(
                                     image,
-                                    width: 64,
-                                    height: 64,
+                                    width: isMobile ? 56 : 64,
+                                    height: isMobile ? 56 : 64,
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) => Container(
-                                      width: 64,
-                                      height: 64,
+                                      width: isMobile ? 56 : 64,
+                                      height: isMobile ? 56 : 64,
                                       color: AppTheme.bgGray,
                                       child: const Icon(
                                         Icons.broken_image_outlined,
@@ -181,17 +183,17 @@ class _BuyItemScreenState extends State<BuyItemScreen> {
                                     ),
                                   ),
                           ),
-                          const SizedBox(width: 12),
+                          SizedBox(width: isMobile ? 10 : 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   name,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: AppTheme.dark,
                                     fontWeight: FontWeight.w800,
-                                    fontSize: 15,
+                                    fontSize: isMobile ? 14 : 15,
                                   ),
                                 ),
                                 const SizedBox(height: 6),

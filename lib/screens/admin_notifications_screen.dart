@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
 import '../config/app_constants.dart';
+import '../utils/responsive.dart';
 import 'admin_order_detail_screen.dart';
 
 class AdminNotificationsScreen extends StatefulWidget {
@@ -109,6 +110,9 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = context.isMobile;
+    final horizontalPadding = context.responsivePadding;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notifications'),
@@ -162,7 +166,7 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
           return Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                padding: EdgeInsets.fromLTRB(horizontalPadding, 20, horizontalPadding, 0),
                 child: Row(
                   children: [
                     Container(
@@ -198,9 +202,9 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
               ),
               Expanded(
                 child: ListView.separated(
-                  padding: const EdgeInsets.all(20),
+                  padding: EdgeInsets.all(horizontalPadding),
                   itemCount: notifications.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 14),
+                  separatorBuilder: (_, __) => SizedBox(height: isMobile ? 10 : 14),
                   itemBuilder: (context, index) {
                     final doc = notifications[index];
                     final data = notifications[index].data();

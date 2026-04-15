@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../app_theme.dart';
+import '../utils/responsive.dart';
 
 class OfflineScreen extends StatelessWidget {
   final VoidCallback? onRetry;
@@ -8,12 +9,15 @@ class OfflineScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = context.isMobile;
+    final bodyPadding = context.responsivePadding;
+
     return Scaffold(
       backgroundColor: const Color(0xFF1A1F2E),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(bodyPadding),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -23,12 +27,12 @@ class OfflineScreen extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.wifi_off_rounded,
-                      size: 100,
+                      size: isMobile ? 82 : 100,
                       color: AppTheme.primary.withValues(alpha: 0.3),
                     ),
                     Container(
-                      width: 120,
-                      height: 120,
+                      width: isMobile ? 96 : 120,
+                      height: isMobile ? 96 : 120,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
@@ -42,10 +46,10 @@ class OfflineScreen extends StatelessWidget {
                 const SizedBox(height: 40),
 
                 // Title
-                const Text(
+                Text(
                   'You are offline',
                   style: TextStyle(
-                    fontSize: 32,
+                    fontSize: isMobile ? 26 : 32,
                     fontWeight: FontWeight.w900,
                     color: Colors.white,
                   ),
@@ -55,11 +59,11 @@ class OfflineScreen extends StatelessWidget {
 
                 // Description
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 32),
                   child: Text(
                     'Check your connection to continue your shopping support session.',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: isMobile ? 14 : 16,
                       color: Colors.white.withValues(alpha: 0.7),
                       height: 1.5,
                     ),
@@ -70,7 +74,7 @@ class OfflineScreen extends StatelessWidget {
 
                 // Retry Button
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 32),
                   child: SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
