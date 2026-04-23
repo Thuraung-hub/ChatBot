@@ -6,7 +6,7 @@ A Flutter conversion of the original React/Firebase Pinky Shop e-commerce app.
 
 ## Live Deployment
 
-- Web app (updated): https://pinky-shop-f5ad6.web.app/#/
+- Web app (updated): https://pinky-shop-f5ad6.web.app
 
 ---
 
