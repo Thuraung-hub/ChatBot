@@ -10,6 +10,26 @@ enum Environment {
 class Config {
   static Environment _environment = Environment.development;
 
+  static Environment environmentFromString(
+    String? rawValue, {
+    Environment fallback = Environment.development,
+  }) {
+    final normalized = rawValue?.trim().toLowerCase();
+    switch (normalized) {
+      case 'dev':
+      case 'development':
+        return Environment.development;
+      case 'stage':
+      case 'staging':
+        return Environment.staging;
+      case 'prod':
+      case 'production':
+        return Environment.production;
+      default:
+        return fallback;
+    }
+  }
+
   static String _requireEnv(String key) {
     final value = dotenv.env[key];
     if (value == null || value.isEmpty) {
@@ -83,7 +103,7 @@ class Config {
 
   /// Firebase Hosting URL (for reference)
   static const String firebaseHostingUrl =
-      'https://chatbot-flutter-7b34f.web.app';
+      'https://pinky-shop-f5ad6.web.app';
 
   /// Check if in development mode
   static bool get isDevelopment => _environment == Environment.development;

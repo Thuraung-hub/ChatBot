@@ -7,6 +7,7 @@ import '../config/app_validators.dart';
 import '../app_theme.dart';
 import '../services/auth_service.dart';
 import '../services/manual_reply_service.dart';
+import '../services/conversation_chat_service.dart';
 import '../utils/responsive.dart';
 import '../widgets/rbac_visibility.dart';
 import '../widgets/app_dialogs.dart';
@@ -46,12 +47,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
   final _subAdminNameCtrl = TextEditingController();
   final _manualKeywordCtrl = TextEditingController();
   final _manualReplyCtrl = TextEditingController();
+  final _adminCustomerUidCtrl = TextEditingController();
+  final _adminCustomerReplyCtrl = TextEditingController();
   final _manualReplyFormKey = GlobalKey<FormState>();
   final ManualReplyService _manualReplyService = ManualReplyService();
+  final ConversationChatService _conversationChatService =
+      ConversationChatService();
 
   bool _loading = false;
   bool _subAdminLoading = false;
   bool _manualReplyLoading = false;
+  bool _adminReplyLoading = false;
   bool _success = false;
   String? _newProductId;
   bool _showSuccessDialog = false;
@@ -69,7 +75,85 @@ class _AdminDashboardState extends State<AdminDashboard> {
     _subAdminNameCtrl.dispose();
     _manualKeywordCtrl.dispose();
     _manualReplyCtrl.dispose();
+    _adminCustomerUidCtrl.dispose();
+    _adminCustomerReplyCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _sendAdminReplyToCustomer(AuthService auth) async {
+    final customerUid = _adminCustomerUidCtrl.text.trim();
+    final message = _adminCustomerReplyCtrl.text.trim();
+    if (customerUid.isEmpty || message.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Customer UID and reply message are required.'),
+          backgroundColor: AppTheme.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _adminReplyLoading = true);
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection(AppConstants.usersCollection)
+          .doc(customerUid)
+          .get();
+
+      if (!userDoc.exists) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Customer not found for this UID.'),
+            backgroundColor: AppTheme.red,
+          ),
+        );
+        return;
+      }
+
+      final userData = userDoc.data() ?? <String, dynamic>{};
+      final customerName = (userData['name'] ?? '').toString();
+      final customerEmail = (userData['email'] ?? '').toString();
+
+      final conversationId = await _conversationChatService.ensureCustomerConversation(
+        customerId: customerUid,
+        customerName: customerName,
+        customerEmail: customerEmail,
+      );
+
+      final senderName = auth.profile?.name.trim().isNotEmpty == true
+          ? auth.profile!.name
+          : (auth.user?.email ?? 'Admin');
+
+      await _conversationChatService.sendMessage(
+        conversationId: conversationId,
+        senderId: auth.user?.uid ?? 'admin',
+        senderRole: AppConstants.adminRole,
+        senderName: senderName,
+        text: message,
+      );
+
+      _adminCustomerReplyCtrl.clear();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Reply sent to customer.'),
+          backgroundColor: AppTheme.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to send reply: $e'),
+          backgroundColor: AppTheme.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _adminReplyLoading = false);
+      }
+    }
   }
 
   Future<void> _saveManualReply(AuthService auth) async {
@@ -414,6 +498,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     Text(
                       'Manage your store inventory and add new products.',
                       style: TextStyle(color: AppTheme.textDark, fontSize: isMobile ? 14 : 15)),
+                    const SizedBox(height: 12),
+                    if (isAdmin)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: OutlinedButton.icon(
+                          onPressed: () =>
+                              Navigator.pushNamed(context, AppConstants.adminChatRoute),
+                          icon: const Icon(Icons.forum_outlined),
+                          label: const Text('Open Admin Inbox'),
+                        ),
+                      ),
                     SizedBox(height: isMobile ? 20 : 28),
 
                   // Form card
@@ -655,6 +750,99 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   ),
 
                   const SizedBox(height: 20),
+
+                  if (isAdmin) ...[
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: AppTheme.borderGray),
+                      ),
+                      padding: EdgeInsets.all(isMobile ? 16 : 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryLight,
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: const Icon(
+                                  Icons.reply_all_rounded,
+                                  color: AppTheme.primary,
+                                  size: 22,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'Admin Reply Box',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.textDark,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Enter customer UID and send a direct admin reply.',
+                            style: TextStyle(color: AppTheme.textDark, fontSize: 13),
+                          ),
+                          const SizedBox(height: 16),
+                          _FormField(
+                            controller: _adminCustomerUidCtrl,
+                            label: 'Customer UID *',
+                            hint: 'Paste customer Firebase UID',
+                            icon: Icons.person_outline_rounded,
+                            validator: (value) => null,
+                          ),
+                          const SizedBox(height: 14),
+                          _FormField(
+                            controller: _adminCustomerReplyCtrl,
+                            label: 'Reply Message *',
+                            hint: 'Type your reply to customer...',
+                            icon: Icons.chat_bubble_outline_rounded,
+                            maxLines: 4,
+                            validator: (value) => null,
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _adminReplyLoading
+                                  ? null
+                                  : () => _sendAdminReplyToCustomer(auth),
+                              icon: _adminReplyLoading
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.send_rounded),
+                              label: Text(
+                                _adminReplyLoading ? 'Sending...' : 'Send Reply',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
 
                   if (isStrictAdmin) ...[
                     Container(
@@ -929,7 +1117,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                   padding: EdgeInsets.symmetric(vertical: 8),
                                   child: Text(
                                     'No manual replies yet. Add your first keyword reply above.',
-                                    style: TextStyle(color: AppTheme.textGray),
+                                    style: TextStyle(color: AppTheme.textPrimary),
                                   ),
                                 );
                               }
@@ -962,7 +1150,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                               child: Text(
                                                 'Keyword: $keyword',
                                                 style: const TextStyle(
-                                                  color: AppTheme.textDark,
+                                                  color: AppTheme.textPrimary,
                                                   fontWeight: FontWeight.w800,
                                                 ),
                                               ),
@@ -983,7 +1171,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                         Text(
                                           reply,
                                           style: const TextStyle(
-                                            color: AppTheme.textDark,
+                                            color: AppTheme.textPrimary,
                                             height: 1.4,
                                           ),
                                         ),
@@ -991,7 +1179,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                         Text(
                                           'Created by: $createdBy',
                                           style: const TextStyle(
-                                            color: AppTheme.textGray,
+                                            color: AppTheme.textPrimary,
                                             fontSize: 12,
                                             fontWeight: FontWeight.w600,
                                           ),

@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -14,6 +16,7 @@ import 'secure_storage_service.dart';
 class AuthService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  StreamSubscription<User?>? _authStateSub;
 
   User? _user;
   UserProfile? _profile;
@@ -30,7 +33,13 @@ class AuthService extends ChangeNotifier {
   bool get isLoggedIn => _user != null;
 
   AuthService() {
-    _auth.authStateChanges().listen(_onAuthStateChanged);
+    _authStateSub = _auth.authStateChanges().listen(_onAuthStateChanged);
+  }
+
+  @override
+  void dispose() {
+    _authStateSub?.cancel();
+    super.dispose();
   }
 
   void clearError() {
@@ -115,24 +124,28 @@ class AuthService extends ChangeNotifier {
     return signInWithEmail(email, password);
   }
 
-  Future<void> sendPasswordReset(String email) async {
-    final normalizedEmail = email.trim().toLowerCase();
-    if (normalizedEmail.isEmpty) {
+  Future<void> sendPasswordReset(String identifier) async {
+    final normalized = identifier.trim();
+    if (normalized.isEmpty) {
       throw Exception('Email address is required.');
     }
 
-    _setProcessing(true);
-    _errorMessage = null;
-    notifyListeners();
+    if (!normalized.contains('@')) {
+      throw Exception(
+        'Please enter your registered email address to reset your password.',
+      );
+    }
+
+    final normalizedEmail = normalized.toLowerCase();
 
     try {
       await _auth.sendPasswordResetEmail(email: normalizedEmail);
+    } on FirebaseAuthException catch (e) {
+      _errorMessage = _friendlyError(e);
+      rethrow;
     } catch (e) {
       _errorMessage = _friendlyError(e);
-      notifyListeners();
       rethrow;
-    } finally {
-      _setProcessing(false);
     }
   }
 
@@ -231,6 +244,12 @@ class AuthService extends ChangeNotifier {
         final googleUser = await googleSignIn.authenticate();
 
         final googleAuth = googleUser.authentication;
+        if (googleAuth.idToken == null) {
+          throw Exception(
+            'Google sign-in failed: missing ID token. Please verify Firebase Android SHA fingerprints and download a new google-services.json.',
+          );
+        }
+
         final authz = await googleUser.authorizationClient
             .authorizationForScopes(<String>['email', 'profile']);
         final credential = GoogleAuthProvider.credential(
@@ -444,6 +463,24 @@ class AuthService extends ChangeNotifier {
   }
 
   String _friendlyError(dynamic error) {
+    if (error is GoogleSignInException) {
+      switch (error.code) {
+        case GoogleSignInExceptionCode.canceled:
+          return 'Google sign-in was canceled.';
+        case GoogleSignInExceptionCode.clientConfigurationError:
+        case GoogleSignInExceptionCode.providerConfigurationError:
+          return 'Google sign-in is not configured for this Android app yet. Add SHA-1/SHA-256 in Firebase Console, then replace android/app/google-services.json and rebuild.';
+        case GoogleSignInExceptionCode.interrupted:
+          return 'Google sign-in was interrupted. Please try again.';
+        case GoogleSignInExceptionCode.userMismatch:
+          return 'Selected Google account does not match the current session. Sign out and try again.';
+        default:
+          return error.description?.trim().isNotEmpty == true
+              ? error.description!.trim()
+              : 'Google sign-in failed. Please try again.';
+      }
+    }
+
     if (error is FirebaseAuthException) {
       switch (error.code) {
         case 'invalid-credential':

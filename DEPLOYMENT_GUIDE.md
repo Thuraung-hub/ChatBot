@@ -2,7 +2,7 @@
 
 ## Live Deployment Link
 
-- Firebase Hosting: https://chatbot-flutter-7b34f.web.app
+- Firebase Hosting: https://pinky-shop-f5ad6.web.app
 
 ## Environment Configuration
 

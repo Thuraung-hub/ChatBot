@@ -232,7 +232,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Text(
                               profile.email,
                               style: const TextStyle(
-                                color: AppTheme.textGray,
+                                color: Colors.white,
                                 fontSize: 14,
                               ),
                             ),
@@ -413,9 +413,11 @@ class _InfoTileState extends State<_InfoTile> {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: _pressed ? AppTheme.primaryLight : AppTheme.bgGray,
+            color: _pressed
+                ? AppTheme.primary.withValues(alpha: 0.92)
+                : AppTheme.textDark,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppTheme.borderGray),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
           ),
           child: Row(
             children: [
@@ -430,7 +432,7 @@ class _InfoTileState extends State<_InfoTile> {
                       style: const TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
-                        color: AppTheme.textGray,
+                        color: Colors.white70,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -441,7 +443,7 @@ class _InfoTileState extends State<_InfoTile> {
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: AppTheme.textDark,
+                        color: Colors.white,
                       ),
                     ),
                   ],

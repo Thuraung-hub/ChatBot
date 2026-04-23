@@ -1,4 +1,4 @@
-package com.example.pinky_shop
+package com.thuraunghub.pinkyshop
 
 import io.flutter.embedding.android.FlutterActivity
 

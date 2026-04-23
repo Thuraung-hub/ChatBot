@@ -1,7 +1,7 @@
 # Firebase Hosting Deployment - API Configuration Guide
 
 Your Flutter web app is now live at:
-🌐 **https://chatbot-flutter-7b34f.web.app**
+🌐 **https://pinky-shop-f5ad6.web.app**
 
 ## ⚙️ Next Steps: Configure Your Backend API
 

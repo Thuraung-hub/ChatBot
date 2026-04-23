@@ -1,6 +1,6 @@
 # 🧪 QA Testing Checklist - Pinky Shop Chatbot Flutter Web App
 
-**App URL:** https://chatbot-flutter-7b34f.web.app  
+**App URL:** https://pinky-shop-f5ad6.web.app  
 **Testing Environment:** Chrome/Firefox/Safari (Web)  
 **Date:** April 14, 2026  
 **Status:** Active Testing
@@ -27,7 +27,7 @@
 **Description:** User logs in with correct email and password credentials
 
 **Steps to Execute:**
-1. Navigate to https://chatbot-flutter-7b34f.web.app
+1. Navigate to https://pinky-shop-f5ad6.web.app
 2. Click on "Login" button on welcome screen
 3. Enter valid email: `test@example.com`
 4. Enter valid password: `Password123`
@@ -289,7 +289,7 @@
 **Description:** User successfully logs in with Google account
 
 **Steps to Execute:**
-1. Navigate to https://chatbot-flutter-7b34f.web.app
+1. Navigate to https://pinky-shop-f5ad6.web.app
 2. Click "Google Account" button on login screen
 3. Google sign-in popup appears
 4. Select a valid Google account
@@ -313,7 +313,7 @@
 - ❌ User data not loaded after auth
 
 **Pass/Fail:** ☐ PASS / ☐ FAIL  
-**Note:** This was fixed by adding chatbot-flutter-7b34f.web.app to authorized domains
+**Note:** This was fixed by adding pinky-shop-f5ad6.web.app to authorized domains
 
 ---
 
@@ -2197,7 +2197,7 @@
 
 **Steps to Execute:**
 1. DevTools → Application → Storage → LocalStorage
-2. Select chatbot-flutter-7b34f.web.app
+2. Select pinky-shop-f5ad6.web.app
 3. Inspect stored keys
 
 **Expected Result:**

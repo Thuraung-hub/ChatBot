@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../services/gemini_client.dart';
 import '../services/manual_reply_service.dart';
 import '../services/monitoring_service.dart';
+import '../services/conversation_chat_service.dart';
 import '../utils/responsive.dart';
 import '../widgets/chat_input_bar.dart';
 
@@ -23,10 +24,13 @@ class _ChatScreenState extends State<ChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   late final ChatProvider _chatProvider;
+  final ConversationChatService _conversationService = ConversationChatService();
   final ManualReplyService _manualReplyService = ManualReplyService();
   bool _sending = false;
   bool _showTypingIndicator = false;
   int _lastMessageCount = 0;
+  String? _conversationId;
+  bool _conversationInitInProgress = false;
 
   static const List<ChatQuickReply> _quickReplies = [
     ChatQuickReply(
@@ -54,7 +58,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _chatProvider = ChatProvider(geminiClient: HttpGeminiClient());
-    _sendWelcomeMessageIfNeeded();
+    _ensureConversation();
   }
 
   @override
@@ -84,15 +88,37 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollController.jumpTo(target);
   }
 
-  Future<void> _sendWelcomeMessageIfNeeded() async {
+  Future<void> _ensureConversation() async {
+    if (_conversationInitInProgress || _conversationId != null) return;
+
     final auth = context.read<AuthService>();
     final uid = auth.user?.uid;
     if (uid == null) return;
 
+    _conversationInitInProgress = true;
+
+    final userName = auth.profile?.name.trim().isNotEmpty == true
+        ? auth.profile!.name
+        : ((auth.user?.displayName?.trim().isNotEmpty ?? false)
+            ? auth.user!.displayName!
+            : 'Customer');
+    final email = auth.profile?.email ?? auth.user?.email ?? '';
+
     try {
+      final conversationId = await _conversationService.ensureCustomerConversation(
+        customerId: uid,
+        customerName: userName,
+        customerEmail: email,
+      );
+
+      if (!mounted) return;
+      setState(() => _conversationId = conversationId);
+
       final existingWelcome = await FirebaseFirestore.instance
-          .collection('chat')
-          .where('userId', isEqualTo: uid)
+          .collection(AppConstants.conversationsCollection)
+          .doc(conversationId)
+          .collection(AppConstants.messagesCollection)
+          .where('senderRole', isEqualTo: 'bot')
           .where('type', isEqualTo: 'welcome')
           .limit(1)
           .get();
@@ -101,21 +127,39 @@ class _ChatScreenState extends State<ChatScreen> {
         return;
       }
 
-      await FirebaseFirestore.instance.collection('chat').add({
-        'userId': uid,
-        'sender': 'bot',
-        'userName': 'Shop Bot',
+      await FirebaseFirestore.instance
+          .collection(AppConstants.conversationsCollection)
+          .doc(conversationId)
+          .collection(AppConstants.messagesCollection)
+          .add({
+        'senderId': 'shop-bot',
+        'senderRole': 'bot',
+        'senderName': 'Shop Bot',
         'type': 'welcome',
         'text':
             "Hey there! 👋 I'm your personal style & tech assistant and you can ask about with the products Description,review,category and delivery information  .",
         'createdAt': FieldValue.serverTimestamp(),
+        'isRead': false,
       });
+
+      await FirebaseFirestore.instance
+          .collection(AppConstants.conversationsCollection)
+          .doc(conversationId)
+          .set({
+        'lastMessage':
+            "Hey there! 👋 I'm your personal style & tech assistant and you can ask about with the products Description,review,category and delivery information  .",
+        'lastSenderRole': 'bot',
+        'lastSenderName': 'Shop Bot',
+        'lastMessageAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     } catch (error, stackTrace) {
       await MonitoringService.captureException(
         error,
         stackTrace: stackTrace,
         hint: 'chat_welcome_message',
       );
+    } finally {
+      _conversationInitInProgress = false;
     }
   }
 
@@ -167,7 +211,9 @@ class _ChatScreenState extends State<ChatScreen> {
       }
 
       try {
-        await _chatProvider.clearChatHistory(uid);
+        final conversationId = _conversationId;
+        if (conversationId == null) return;
+        await _conversationService.clearConversationMessages(conversationId);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -403,6 +449,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   /// BOT REPLY FUNCTION
   Future<void> _botReply(String message, String uid, String userName) async {
+    final conversationId = _conversationId;
+    if (conversationId == null) return;
+
     final manualReply = await _manualReplyService.findMatchingReply(message);
     final quickReply = _buildQuickLocalReply(message, userName);
     final catalogReply = manualReply == null && quickReply == null
@@ -425,13 +474,13 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     }
 
-    await FirebaseFirestore.instance.collection('chat').add({
-      'userId': uid,
-      'sender': 'bot',
-      'userName': 'Shop Bot',
-      'text': reply,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    await _conversationService.sendMessage(
+      conversationId: conversationId,
+      senderId: 'shop-bot',
+      senderRole: 'bot',
+      senderName: 'Shop Bot',
+      text: reply,
+    );
   }
 
   Future<void> _sendQuickReply(String message) async {
@@ -445,6 +494,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
     final auth = context.read<AuthService>();
     if (auth.user == null) return;
+    final conversationId = _conversationId;
+    if (conversationId == null) return;
 
     final trace = await MonitoringService.startTrace('chat_send_message');
     setState(() => _sending = true);
@@ -466,13 +517,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
     try {
       /// SAVE USER MESSAGE
-      await FirebaseFirestore.instance.collection('chat').add({
-        'userId': auth.user!.uid,
-        'sender': 'user',
-        'userName': userName,
-        'text': text,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await _conversationService.sendMessage(
+        conversationId: conversationId,
+        senderId: auth.user!.uid,
+        senderRole: AppConstants.customerRole,
+        senderName: userName,
+        text: text,
+      );
 
       /// BOT REPLY
       await _botReply(text, auth.user!.uid, userName);
@@ -505,8 +556,17 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
-    final myUid = auth.user?.uid ?? '';
     final isMobile = context.isMobile;
+    final conversationId = _conversationId;
+
+    if (conversationId == null &&
+        auth.user != null &&
+        !_conversationInitInProgress) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _conversationId != null) return;
+        _ensureConversation();
+      });
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B1020),
@@ -533,11 +593,12 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('chat')
-                  .where('userId', isEqualTo: myUid)
-                  .snapshots(),
+            child: conversationId == null
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppTheme.primary),
+                  )
+                : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: _conversationService.watchConversationMessages(conversationId),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return const Center(
@@ -594,11 +655,11 @@ class _ChatScreenState extends State<ChatScreen> {
                     }
 
                     final data = _safeMap(docs[i].data());
-                    final sender = (data['sender'] ?? 'user').toString();
-                    final isMe = sender == 'user';
+                    final senderRole = (data['senderRole'] ?? 'customer').toString();
+                    final isMe = senderRole == AppConstants.customerRole;
 
                     return _MessageBubble(
-                      userName: (data['userName'] ?? 'User').toString(),
+                      userName: (data['senderName'] ?? 'User').toString(),
                       text: (data['text'] ?? '').toString(),
                       isMe: isMe,
                     );

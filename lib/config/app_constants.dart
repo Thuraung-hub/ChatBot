@@ -14,10 +14,13 @@ class AppConstants {
   static const profileRoute = '/profile';
   static const chatRoute = '/chat';
   static const adminRoute = '/admin';
+  static const adminChatRoute = '/admin-chat';
   static const productRoute = '/product';
 
   static const usersCollection = 'users';
   static const chatCollection = 'chat';
+  static const conversationsCollection = 'conversations';
+  static const messagesCollection = 'messages';
   static const productsCollection = 'products';
   static const cartCollection = 'cart';
   static const ordersCollection = 'orders';
@@ -40,6 +43,7 @@ enum Routes {
   profile,
   chat,
   admin,
+  adminChat,
   product,
 }
 
@@ -62,6 +66,8 @@ extension RoutesPath on Routes {
         return '/chat';
       case Routes.admin:
         return '/admin';
+      case Routes.adminChat:
+        return '/admin-chat';
       case Routes.product:
         return '/product';
     }

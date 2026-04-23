@@ -286,7 +286,13 @@ class HomeScreen extends StatelessWidget {
                             _HeroPill(
                               icon: Icons.chat_bubble_outline_rounded,
                               label: 'Ask Assistant',
-                              onTap: () => Navigator.pushNamed(context, Routes.chat.path),
+                              onTap: () {
+                                final isAdmin = context.read<AuthService>().isAdmin;
+                                Navigator.pushNamed(
+                                  context,
+                                  isAdmin ? Routes.adminChat.path : Routes.chat.path,
+                                );
+                              },
                             ),
                             _HeroPill(
                               icon: Icons.shopping_cart_outlined,
@@ -436,7 +442,10 @@ class _NavActions extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.chat_bubble_outline_rounded,
               color: AppTheme.dark),
-          onPressed: () => Navigator.pushNamed(context, Routes.chat.path),
+          onPressed: () => Navigator.pushNamed(
+            context,
+            auth.isAdmin ? Routes.adminChat.path : Routes.chat.path,
+          ),
         ),
         IconButton(
           icon: const Icon(Icons.person_outline_rounded, color: AppTheme.dark),

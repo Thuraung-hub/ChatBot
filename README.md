@@ -6,7 +6,17 @@ A Flutter conversion of the original React/Firebase Pinky Shop e-commerce app.
 
 ## Live Deployment
 
-- Web app: https://chatbot-flutter-7b34f.web.app
+- Web app (updated): https://pinky-shop-f5ad6.web.app/#/
+
+---
+
+## Project Highlights
+
+- AI-powered fashion assistant for personalized style suggestions 24/7
+- Premium product curation with real-time Firestore-backed catalog updates
+- Secure authentication (Email/Password + Google Sign-In)
+- End-to-end shopping flow: product detail, cart, checkout, and order handling
+- Admin tooling for product management and customer support workflows
 
 ---
 

@@ -1,6 +1,6 @@
 # Week 11 Integrated Solution Plan
 
-Deployment Link: "https://chatbot-flutter-7b34f.web.app"
+Deployment Link: "https://pinky-shop-f5ad6.web.app"
 
 Automation: "I use flutter test to automatically verify my cart logic and login flows."
 

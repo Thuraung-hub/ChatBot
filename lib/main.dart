@@ -23,17 +23,27 @@ import 'screens/profile_screen.dart';
 import 'screens/product_detail_screen.dart';
 import 'screens/chat_screen.dart';
 import 'screens/admin_dashboard.dart';
+import 'screens/admin_chat_inbox_screen.dart';
 import 'screens/offline_screen.dart';
+import 'screens/welcome_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
+    const buildEnvironment = String.fromEnvironment(
+      'ENVIRONMENT',
+      defaultValue: 'production',
+    );
+
     await dotenv.load(fileName: '.env');
 
-    // Set environment (change based on build configuration)
     Config.setEnvironment(
-        Environment.production); // For Firebase Hosting web deployment
+      Config.environmentFromString(
+        buildEnvironment,
+        fallback: Environment.production,
+      ),
+    );
 
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -147,6 +157,7 @@ class PinkyShopApp extends StatefulWidget {
 
 class _PinkyShopAppState extends State<PinkyShopApp> {
   final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+  final AuthService _authService = AuthService();
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
   bool _isOffline = false;
 
@@ -196,13 +207,14 @@ class _PinkyShopAppState extends State<PinkyShopApp> {
   @override
   void dispose() {
     _connectivitySub?.cancel();
+    _authService.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AuthService(),
+    return ChangeNotifierProvider<AuthService>.value(
+      value: _authService,
       child: MaterialApp(
         scaffoldMessengerKey: _scaffoldMessengerKey,
         title: 'Pinky Shop',
@@ -268,11 +280,15 @@ class _PinkyShopAppState extends State<PinkyShopApp> {
         );
       case AppConstants.chatRoute:
         return AppPageRoute.slideFromBottom(
-          const _PrivateRoute(child: ChatScreen()),
+          const _PrivateRoute(child: _RoleAwareChatScreen()),
         );
       case AppConstants.adminRoute:
         return AppPageRoute.slideFromRight(
           const _AdminRoute(child: AdminDashboard()),
+        );
+      case AppConstants.adminChatRoute:
+        return AppPageRoute.slideFromRight(
+          const _AdminRoute(child: AdminChatInboxScreen()),
         );
       case AppConstants.productRoute:
         final productId = settings.arguments as String? ?? '';
@@ -311,11 +327,7 @@ class _AuthGate extends StatelessWidget {
       );
     }
 
-    if (auth.isLoggedIn) {
-      return const HomeScreen();
-    } else {
-      return const LoginScreen();
-    }
+    return const WelcomeScreen();
   }
 }
 
@@ -335,13 +347,23 @@ class _PrivateRoute extends StatelessWidget {
     }
 
     if (!auth.isLoggedIn) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushReplacementNamed(context, Routes.login.path);
-      });
-      return const SizedBox.shrink();
+      return const LoginScreen();
     }
 
     return child;
+  }
+}
+
+class _RoleAwareChatScreen extends StatelessWidget {
+  const _RoleAwareChatScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthService>();
+    if (auth.isAdmin) {
+      return const AdminChatInboxScreen();
+    }
+    return const ChatScreen();
   }
 }
 
@@ -361,10 +383,7 @@ class _AdminRoute extends StatelessWidget {
     }
 
     if (!auth.isLoggedIn || !auth.isAdmin) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushReplacementNamed(context, Routes.home.path);
-      });
-      return const SizedBox.shrink();
+      return const HomeScreen();
     }
 
     return child;
@@ -387,10 +406,7 @@ class _PublicRoute extends StatelessWidget {
     }
 
     if (auth.isLoggedIn) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushReplacementNamed(context, Routes.home.path);
-      });
-      return const SizedBox.shrink();
+      return const HomeScreen();
     }
 
     return child;
